@@ -16,9 +16,13 @@ interface Message {
 }
 
 // Interface para as respostas do webhook
-interface WebhookResponse {
+interface WebhookResponseItem {
   message: string;
   typeMessage: 'text' | 'audio' | 'image' | 'document' | 'video';
+}
+
+interface WebhookResponse {
+  messages: WebhookResponseItem[];
 }
 
 // Função para converter o nome do agente para um formato URL-friendly
@@ -102,24 +106,31 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   const addAgentMessagesWithDelay = async (responses: WebhookResponse[]) => {
     setIsTyping(true);
     
-    // Processar cada resposta do webhook sequencialmente com delay
-    for (let i = 0; i < responses.length; i++) {
-      // Espera 2 segundos antes de mostrar a próxima mensagem (exceto para a primeira)
-      if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+    // Processar cada resposta do webhook sequencialmente
+    for (let responseIdx = 0; responseIdx < responses.length; responseIdx++) {
+      const response = responses[responseIdx];
+      
+      // Processar cada mensagem dentro da resposta
+      if (response.messages && Array.isArray(response.messages)) {
+        for (let msgIdx = 0; msgIdx < response.messages.length; msgIdx++) {
+          // Espera 2 segundos antes de mostrar a próxima mensagem (exceto para a primeira)
+          if (msgIdx > 0) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+          
+          const messageItem = response.messages[msgIdx];
+          
+          const newMessage: Message = {
+            id: Date.now() + responseIdx + msgIdx,
+            content: messageItem.message,
+            type: messageItem.typeMessage,
+            sender: 'agent',
+            timestamp: new Date()
+          };
+          
+          setMessages(prev => [...prev, newMessage]);
+        }
       }
-      
-      const response = responses[i];
-      
-      const newMessage: Message = {
-        id: Date.now() + i,
-        content: response.message,
-        type: response.typeMessage,
-        sender: 'agent',
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
     }
     
     setIsTyping(false);

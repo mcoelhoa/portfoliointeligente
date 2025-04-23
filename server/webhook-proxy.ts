@@ -6,16 +6,20 @@ const WEBHOOK_URL = 'https://n8neditor.unitmedia.cloud/webhook-test/portfolio';
 // Mock da resposta do webhook para testes locais
 const MOCK_RESPONSE = [
   {
-    message: "Obrigado por entrar em contato. Entendi sua solicitação!",
-    typeMessage: "text"
-  },
-  {
-    message: "Posso te ajudar com mais informações sobre nossos serviços.",
-    typeMessage: "text"
-  },
-  {
-    message: "Quer agendar uma demonstração?",
-    typeMessage: "text"
+    messages: [
+      {
+        message: "Obrigado por entrar em contato. Entendi sua solicitação!",
+        typeMessage: "text"
+      },
+      {
+        message: "Posso te ajudar com mais informações sobre nossos serviços.",
+        typeMessage: "text"
+      },
+      {
+        message: "Quer agendar uma demonstração?",
+        typeMessage: "text"
+      }
+    ]
   }
 ];
 
