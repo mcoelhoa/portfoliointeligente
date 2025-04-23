@@ -13,6 +13,7 @@ interface Message {
   type: 'text' | 'audio' | 'image' | 'document' | 'video';
   sender: 'user' | 'agent';
   timestamp: Date;
+  duration?: number; // Duração em segundos para áudios
 }
 
 // Interface para as respostas do webhook
@@ -92,13 +93,18 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [audioTimer, setAudioTimer] = useState<NodeJS.Timeout | null>(null);
   const [audioRecorder, setAudioRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
 
   // Função para iniciar gravação de áudio
   const startRecording = async () => {
     try {
+      // Resetar o estado da gravação
       setAudioChunks([]);
+      setAudioDuration(0);
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           // Configuração para reduzir a qualidade do áudio e economizar tamanho
@@ -136,12 +142,24 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       recorder.onstop = () => {
         // Quando a gravação parar, envia o áudio
         handleSendAudio();
+        
+        // Limpar o timer quando a gravação parar
+        if (audioTimer) {
+          clearInterval(audioTimer);
+          setAudioTimer(null);
+        }
       };
       
       // Definir um intervalo curto para obter chunks menores (500ms)
       recorder.start(500);
       setAudioRecorder(recorder);
       setIsRecording(true);
+      
+      // Iniciar o temporizador para atualizar a duração em tempo real
+      const timer = setInterval(() => {
+        setAudioDuration(prev => prev + 1);
+      }, 1000);
+      setAudioTimer(timer);
       
       console.log("Gravação de áudio iniciada");
     } catch (error) {
@@ -185,7 +203,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           content: "🎤 Processando áudio...",
           type: 'audio',
           sender: 'user',
-          timestamp: new Date()
+          timestamp: new Date(),
+          duration: audioDuration
         };
         
         setMessages(prev => [...prev, userMessage]);
@@ -204,7 +223,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
               content: "🎤 Áudio enviado (versão curta - o áudio original era muito grande)",
               type: 'audio',
               sender: 'user',
-              timestamp: new Date()
+              timestamp: new Date(),
+              duration: audioDuration
             }
           ]);
         } else {
@@ -216,7 +236,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
               content: "🎤 Áudio enviado",
               type: 'audio',
               sender: 'user',
-              timestamp: new Date()
+              timestamp: new Date(),
+              duration: audioDuration
             }
           ]);
         }
@@ -227,7 +248,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           content: "🎤 Áudio enviado",
           type: 'audio',
           sender: 'user',
-          timestamp: new Date()
+          timestamp: new Date(),
+          duration: audioDuration
         };
         
         setMessages(prev => [...prev, userMessage]);
@@ -573,7 +595,11 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
                         <div className="w-full h-1 bg-white/30 rounded-full">
                           <div className="h-full w-0 bg-white rounded-full"></div>
                         </div>
-                        <span className="text-xs text-white/70 mt-1 block">0:08</span>
+                        <span className="text-xs text-white/70 mt-1 block">
+                          {message.duration 
+                            ? `${Math.floor(message.duration / 60)}:${(message.duration % 60).toString().padStart(2, '0')}` 
+                            : '0:00'}
+                        </span>
                       </div>
                     </div>
                     <span className="text-xs opacity-70 block text-right mt-1">
@@ -616,6 +642,15 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             className="flex-1 bg-[#26304c] border-none rounded-full px-5 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-0"
           />
           
+          {/* Contador de tempo de gravação */}
+          {isRecording && (
+            <div className="mr-2 px-3 py-1 bg-red-500/20 rounded-md text-white flex items-center">
+              <span className="text-red-400 text-sm font-mono">
+                {Math.floor(audioDuration / 60)}:{(audioDuration % 60).toString().padStart(2, '0')}
+              </span>
+            </div>
+          )}
+          
           {/* Botão de gravação de áudio */}
           <button 
             onClick={isRecording ? stopRecording : startRecording}
@@ -624,20 +659,21 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             } text-white transition-colors`}
             title={isRecording ? "Parar gravação" : "Gravar áudio"}
           >
-            <i className={`${isRecording ? 'ri-stop-fill' : 'ri-mic-fill'} text-xl`}></i>
+            <i className={`${isRecording ? 'ri-pause-fill' : 'ri-mic-fill'} text-xl`}></i>
           </button>
           
           {/* Botão de envio de mensagem */}
           <button 
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim()}
+            onClick={isRecording ? stopRecording : handleSendMessage}
+            disabled={!isRecording && !inputValue.trim()}
             className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center ${
-              inputValue.trim() 
+              isRecording || inputValue.trim() 
                 ? 'bg-[#5c5dec]' 
                 : 'bg-[#3b4167]'
             } text-white`}
+            title={isRecording ? "Parar e enviar áudio" : "Enviar mensagem"}
           >
-            <i className="ri-send-plane-fill"></i>
+            <i className={isRecording ? "ri-send-plane-fill" : "ri-send-plane-fill"}></i>
           </button>
         </div>
       </div>
