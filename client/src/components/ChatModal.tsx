@@ -22,7 +22,8 @@ interface WebhookResponseItem {
 }
 
 interface WebhookResponse {
-  messages: WebhookResponseItem[];
+  messages?: WebhookResponseItem[];
+  message?: string;
 }
 
 // Função para converter o nome do agente para um formato URL-friendly
@@ -36,14 +37,18 @@ function convertToUrlFriendly(name: string): string {
 }
 
 // Função para enviar mensagem para o webhook através do proxy no servidor
-async function sendMessageToWebhook(agentName: string, message: string): Promise<WebhookResponse[] | null> {
+async function sendMessageToWebhook(
+  agentName: string, 
+  message: string, 
+  typeMessage: "text" | "audio" = "text"
+): Promise<WebhookResponse[] | null> {
   try {
     const urlFriendlyName = convertToUrlFriendly(agentName);
     
     const payload = {
       agent: urlFriendlyName,
       message: message,
-      typeMessage: "text"
+      typeMessage: typeMessage
     };
     
     console.log("Enviando mensagem para webhook:", payload);
@@ -86,6 +91,100 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioRecorder, setAudioRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+
+  // Função para iniciar gravação de áudio
+  const startRecording = async () => {
+    try {
+      setAudioChunks([]);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          setAudioChunks(chunks => [...chunks, e.data]);
+        }
+      };
+      
+      recorder.onstop = () => {
+        // Quando a gravação parar, envia o áudio
+        handleSendAudio();
+      };
+      
+      recorder.start();
+      setAudioRecorder(recorder);
+      setIsRecording(true);
+      
+      console.log("Gravação de áudio iniciada");
+    } catch (error) {
+      console.error("Erro ao iniciar gravação de áudio:", error);
+      alert("Não foi possível iniciar a gravação de áudio. Verifique se seu navegador tem permissão para acessar o microfone.");
+    }
+  };
+
+  // Função para parar gravação de áudio
+  const stopRecording = () => {
+    if (audioRecorder && isRecording) {
+      audioRecorder.stop();
+      setIsRecording(false);
+      
+      // Fechar as trilhas da stream
+      if (audioRecorder.stream) {
+        audioRecorder.stream.getTracks().forEach(track => track.stop());
+      }
+      
+      console.log("Gravação de áudio finalizada");
+    }
+  };
+  
+  // Função para enviar o áudio gravado para o webhook
+  const handleSendAudio = async () => {
+    if (audioChunks.length === 0) return;
+    
+    try {
+      // Criar um blob com todos os chunks
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      
+      // Converter o blob para base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      reader.onloadend = async () => {
+        // Obter o base64 removendo o prefixo (data:audio/webm;base64,)
+        const base64Audio = reader.result?.toString().split(',')[1] || '';
+        
+        // Adicionar mensagem do usuário na UI
+        const userMessage: Message = {
+          id: Date.now(),
+          content: "🎤 Áudio enviado",
+          type: 'audio',
+          sender: 'user',
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, userMessage]);
+        
+        // Enviar áudio para o webhook
+        setIsTyping(true);
+        const webhookResponses = await sendMessageToWebhook(agent.name, base64Audio, "audio");
+        
+        // Processar resposta do webhook
+        if (webhookResponses && webhookResponses.length > 0) {
+          await addAgentMessagesWithDelay(webhookResponses);
+        } else {
+          setIsTyping(false);
+        }
+        
+        // Limpar os chunks de áudio
+        setAudioChunks([]);
+      };
+    } catch (error) {
+      console.error('Erro ao enviar áudio:', error);
+      setIsTyping(false);
+    }
+  };
 
   // Initial welcome message from the agent
   useEffect(() => {
@@ -104,11 +203,14 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         ]);
         
         // Envia a mensagem de boas-vindas do agente para o webhook
-        sendMessageToWebhook(agent.name, welcomeMessage);
+        sendMessageToWebhook(agent.name, welcomeMessage, "text");
       }, 500);
     } else {
       setMessages([]);
       setInputValue('');
+      if (isRecording) {
+        stopRecording();
+      }
     }
   }, [isOpen, agent]);
 
@@ -133,13 +235,24 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           const newMessage: Message = {
             id: Date.now() + responseIdx + msgIdx,
             content: messageItem.message,
-            type: messageItem.typeMessage,
+            type: messageItem.typeMessage as 'text' | 'audio' | 'image' | 'document' | 'video',
             sender: 'agent',
             timestamp: new Date()
           };
           
           setMessages(prev => [...prev, newMessage]);
         }
+      } else if (response.message) {
+        // Se não tiver array de mensagens, mas tiver uma única mensagem
+        const newMessage: Message = {
+          id: Date.now() + responseIdx,
+          content: response.message,
+          type: 'text',
+          sender: 'agent',
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, newMessage]);
       }
     }
     
@@ -335,6 +448,19 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             placeholder="Digite sua mensagem..." 
             className="flex-1 bg-[#26304c] border-none rounded-full px-5 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-0"
           />
+          
+          {/* Botão de gravação de áudio */}
+          <button 
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center ${
+              isRecording ? 'bg-red-500 animate-pulse' : 'bg-[#3b4167] hover:bg-[#4b5187]'
+            } text-white transition-colors`}
+            title={isRecording ? "Parar gravação" : "Gravar áudio"}
+          >
+            <i className={`${isRecording ? 'ri-stop-fill' : 'ri-mic-fill'} text-xl`}></i>
+          </button>
+          
+          {/* Botão de envio de mensagem */}
           <button 
             onClick={handleSendMessage}
             disabled={!inputValue.trim()}
