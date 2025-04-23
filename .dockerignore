@@ -41,8 +41,14 @@ README.md
 CHANGELOG.md
 LICENSE
 
-# Outros
-*.md
-!README*.md
+# Arquivos de container e deploy
 Dockerfile
 .dockerignore
+docker-compose.yml
+kubernetes/
+
+# Especifícos do projeto
+attached_assets/
+.replit
+replit.nix
+.replit/
