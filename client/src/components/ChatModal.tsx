@@ -63,8 +63,18 @@ async function sendMessageToWebhook(agentName: string, message: string): Promise
       console.log('Mensagem enviada com sucesso para o webhook');
       
       // Parse e retorna a resposta do webhook
-      const webhookResponses = await response.json();
-      return Array.isArray(webhookResponses) ? webhookResponses : null;
+      const responseData = await response.json();
+      console.log('Resposta bruta do webhook:', responseData);
+      
+      // Retorna a resposta como um array
+      if (Array.isArray(responseData)) {
+        return responseData;
+      } else if (responseData && typeof responseData === 'object') {
+        // Se for apenas um objeto, coloque-o em um array
+        return [responseData];
+      }
+      
+      return null;
     }
   } catch (error) {
     console.error('Erro ao enviar mensagem para o webhook:', error);
