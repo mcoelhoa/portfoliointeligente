@@ -14,6 +14,49 @@ interface Message {
   timestamp: Date;
 }
 
+// Webhook URL para enviar as mensagens
+const WEBHOOK_URL = 'https://n8nwebhook.unitmedia.cloud/webhook/portfolio';
+
+// Função para converter o nome do agente para um formato URL-friendly
+function convertToUrlFriendly(name: string): string {
+  return name
+    .normalize('NFD') // normaliza caracteres acentuados
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // remove caracteres especiais
+    .replace(/\s+/g, '-'); // substitui espaços por hífens
+}
+
+// Função para enviar mensagem para o webhook
+async function sendMessageToWebhook(agentName: string, message: string) {
+  try {
+    const urlFriendlyName = convertToUrlFriendly(agentName);
+    
+    const payload = {
+      agent: urlFriendlyName,
+      message: message,
+      typeMessage: "text"
+    };
+    
+    const response = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      console.error('Erro ao enviar mensagem para o webhook');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Erro na requisição ao webhook:', error);
+    return null;
+  }
+}
+
 export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -22,15 +65,20 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   // Initial welcome message from the agent
   useEffect(() => {
     if (isOpen) {
+      const welcomeMessage = `Olá! Eu sou o ${agent.name}. Como posso ajudar você hoje?`;
+      
       setTimeout(() => {
         setMessages([
           {
             id: 1,
-            text: `Olá! Eu sou o ${agent.name}. Como posso ajudar você hoje?`,
+            text: welcomeMessage,
             sender: 'agent',
             timestamp: new Date()
           }
         ]);
+        
+        // Envia a mensagem de boas-vindas do agente para o webhook
+        sendMessageToWebhook(agent.name, welcomeMessage);
       }, 500);
     } else {
       setMessages([]);
@@ -38,34 +86,44 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     }
   }, [isOpen, agent]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
     
-    // Add user message
-    const newMessage: Message = {
+    // Add user message to UI
+    const userMessage: Message = {
       id: Date.now(),
       text: inputValue,
       sender: 'user',
       timestamp: new Date()
     };
     
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Enviar mensagem do usuário para o webhook
+    await sendMessageToWebhook(agent.name, inputValue);
+    
+    const messageText = inputValue;
     setInputValue('');
     
     // Simulate agent typing
     setIsTyping(true);
     
     // Simulate agent response after a delay
-    setTimeout(() => {
+    setTimeout(async () => {
+      const responseText = getAgentResponse(agent, messageText);
+      
       const agentResponse: Message = {
         id: Date.now() + 1,
-        text: getAgentResponse(agent, inputValue),
+        text: responseText,
         sender: 'agent',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, agentResponse]);
       setIsTyping(false);
+      
+      // Enviar resposta do agente para o webhook
+      await sendMessageToWebhook(agent.name, responseText);
     }, 1500);
   };
 
@@ -91,7 +149,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       onClick={handleOutsideClick}
     >
       <div 
-        className="bg-gradient-to-br from-[var(--primary-800)] to-[var(--primary-900)] rounded-xl w-full max-w-md mx-4 shadow-xl overflow-hidden animate-in zoom-in-95 duration-300"
+        className="bg-gradient-to-br from-[var(--primary-800)] to-[var(--primary-900)] rounded-xl w-full max-w-md mx-4 shadow-xl overflow-hidden"
         style={{ animation: 'zoom-in-bounce 300ms' }}
       >
         {/* Chat header */}
