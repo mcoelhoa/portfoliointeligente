@@ -147,18 +147,18 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       onClick={handleOutsideClick}
     >
       <div 
-        className="bg-gradient-to-br from-[var(--primary-800)] to-[var(--primary-900)] rounded-xl w-full max-w-md mx-4 shadow-xl overflow-hidden"
+        className="bg-[#1d2541] rounded-xl w-full max-w-md mx-4 shadow-xl overflow-hidden"
         style={{ animation: 'zoom-in-bounce 300ms' }}
       >
         {/* Chat header */}
-        <div className="bg-gradient-to-r from-[var(--secondary-500)] to-[var(--secondary-700)] p-4 flex items-center justify-between">
+        <div className="bg-[#2d3a5e] p-4 flex items-center justify-between">
           <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mr-3">
-              <i className={`${agent.icon} text-lg text-white`}></i>
+            <div className="w-12 h-12 rounded-full bg-[#5c5dec] flex items-center justify-center mr-3">
+              <i className={`${agent.icon} text-xl text-white`}></i>
             </div>
             <div>
-              <h3 className="font-tech text-white font-semibold">{agent.name}</h3>
-              <p className="text-white/70 text-xs">Online</p>
+              <h3 className="font-tech text-white font-semibold text-lg">{agent.name}</h3>
+              <p className="text-white/70 text-xs">Online agora</p>
             </div>
           </div>
           <button 
@@ -170,7 +170,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         </div>
         
         {/* Chat messages */}
-        <div className="p-4 h-80 overflow-y-auto bg-[var(--primary-900)]/50 flex flex-col space-y-3">
+        <div className="p-4 h-80 overflow-y-auto bg-[#1d2541] flex flex-col space-y-3">
           {messages.map(message => (
             <div 
               key={message.id} 
@@ -178,8 +178,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             >
               <div 
                 className={`max-w-[80%] p-3 rounded-lg ${message.sender === 'user' 
-                  ? 'bg-[var(--secondary-500)] text-white rounded-tr-none' 
-                  : 'bg-[var(--primary-800)] text-white rounded-tl-none'}`}
+                  ? 'bg-[#5c5dec] text-white rounded-tr-none' 
+                  : 'bg-[#2d3a5e] text-white rounded-tl-none'}`}
               >
                 <p>{message.text}</p>
                 <span className="text-xs opacity-70 block text-right mt-1">
@@ -191,7 +191,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           
           {isTyping && (
             <div className="flex justify-start">
-              <div className="bg-[var(--primary-800)] p-3 rounded-lg rounded-tl-none">
+              <div className="bg-[#2d3a5e] p-3 rounded-lg rounded-tl-none">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"></div>
                   <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -203,23 +203,23 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         </div>
         
         {/* Chat input */}
-        <div className="p-3 border-t border-[var(--primary-700)] flex items-center bg-[var(--primary-800)]">
+        <div className="p-4 bg-[#1d2541] flex items-center">
           <input 
             type="text" 
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua mensagem..." 
-            className="flex-1 bg-[var(--primary-900)]/90 border border-[var(--primary-700)] rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--secondary-500)]"
+            className="flex-1 bg-[#26304c] border-none rounded-full px-5 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-0"
           />
           <button 
             onClick={handleSendMessage}
             disabled={!inputValue.trim()}
-            className={`ml-2 w-10 h-10 rounded-full flex items-center justify-center ${
+            className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center ${
               inputValue.trim() 
-                ? 'bg-[var(--secondary-500)] text-white' 
-                : 'bg-[var(--primary-700)] text-gray-500'
-            }`}
+                ? 'bg-[#5c5dec]' 
+                : 'bg-[#3b4167]'
+            } text-white`}
           >
             <i className="ri-send-plane-fill"></i>
           </button>
