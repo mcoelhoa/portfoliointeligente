@@ -342,7 +342,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         for (let msgIdx = 0; msgIdx < response.messages.length; msgIdx++) {
           // Espera 2 segundos antes de mostrar a próxima mensagem (exceto para a primeira)
           if (msgIdx > 0) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Mostra o indicador de digitação por um tempo antes da próxima mensagem
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
           
           const messageItem = response.messages[msgIdx];
@@ -355,7 +356,23 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             timestamp: new Date()
           };
           
+          // Adiciona a mensagem, atualizando o estado
           setMessages(prev => [...prev, newMessage]);
+          
+          // Após adicionar cada mensagem, verifica se há mais mensagens a serem mostradas
+          // Se houver, mantém o indicador de digitação ativo para a próxima mensagem
+          if (msgIdx < response.messages.length - 1) {
+            // Move a visualização para o final da lista
+            setTimeout(() => {
+              const chatContainer = document.querySelector('.chat-messages');
+              if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+              }
+            }, 100);
+            
+            // Mantém o indicador de digitação visível por um breve período para a próxima mensagem
+            await new Promise(resolve => setTimeout(resolve, 800));
+          }
         }
       } else if (response.message) {
         // Se não tiver array de mensagens, mas tiver uma única mensagem
@@ -371,7 +388,16 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       }
     }
     
+    // Remove o indicador de digitação quando todas as mensagens forem mostradas
     setIsTyping(false);
+    
+    // Scroll para o final da lista de mensagens
+    setTimeout(() => {
+      const chatContainer = document.querySelector('.chat-messages');
+      if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }, 100);
   };
 
   const handleSendMessage = async () => {
@@ -521,21 +547,47 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         </div>
         
         {/* Chat messages */}
-        <div className="p-4 h-80 overflow-y-auto bg-[#1d2541] flex flex-col space-y-3">
+        <div className="p-4 h-80 overflow-y-auto bg-[#1d2541] flex flex-col space-y-3 chat-messages">
           {messages.map(message => (
             <div 
               key={message.id} 
               className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div 
-                className={`max-w-[80%] p-3 rounded-lg ${message.sender === 'user' 
-                  ? 'bg-[#5c5dec] text-white rounded-tr-none' 
-                  : 'bg-[#2d3a5e] text-white rounded-tl-none'}`}
+                className={`${message.type === 'audio' ? 'min-w-[100px]' : 'max-w-[80%]'} p-3 rounded-lg ${
+                  message.sender === 'user' 
+                    ? 'bg-[#5c5dec] text-white rounded-tr-none' 
+                    : 'bg-[#2d3a5e] text-white rounded-tl-none'
+                }`}
               >
-                <p>{message.content}</p>
-                <span className="text-xs opacity-70 block text-right mt-1">
-                  {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                </span>
+                {message.type === 'audio' ? (
+                  <div className="audio-message">
+                    <div className="flex items-center">
+                      <button 
+                        className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mr-2 hover:bg-white/30 transition-colors"
+                        title="Reproduzir áudio"
+                      >
+                        <i className="ri-play-fill text-white"></i>
+                      </button>
+                      <div className="flex-1">
+                        <div className="w-full h-1 bg-white/30 rounded-full">
+                          <div className="h-full w-0 bg-white rounded-full"></div>
+                        </div>
+                        <span className="text-xs text-white/70 mt-1 block">0:08</span>
+                      </div>
+                    </div>
+                    <span className="text-xs opacity-70 block text-right mt-1">
+                      {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <p>{message.content}</p>
+                    <span className="text-xs opacity-70 block text-right mt-1">
+                      {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           ))}
