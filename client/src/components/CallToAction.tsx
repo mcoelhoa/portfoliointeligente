@@ -14,20 +14,14 @@ export default function CallToAction() {
           <p className="text-lg md:text-xl text-gray-200 mb-10 max-w-2xl mx-auto">
             Comece agora mesmo e descubra como nossos agentes de IA podem revolucionar seus processos, aumentar sua produtividade e impulsionar seus resultados.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <a 
-              href="#agents" 
-              className="px-8 py-4 rounded-lg bg-gradient-to-r from-[var(--secondary-500)] to-[var(--accent-500)] font-medium text-white hover:shadow-lg hover:shadow-[var(--accent-500)]/30 transition-all duration-300 w-full sm:w-auto animate-pulse-slow"
-            >
-              Começar Gratuitamente
-            </a>
+          <div className="flex justify-center items-center">
             <a 
               href={whatsappLink} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="px-8 py-4 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 font-medium text-white hover:bg-white/20 transition-all duration-300 w-full sm:w-auto flex items-center justify-center"
+              className="px-8 py-4 rounded-lg bg-gradient-to-r from-[var(--secondary-500)] to-[var(--accent-500)] font-medium text-white hover:shadow-lg hover:shadow-[var(--accent-500)]/30 transition-all duration-300 w-full sm:w-auto max-w-xs flex items-center justify-center animate-pulse-slow"
             >
-              <span>Falar com Especialista</span>
+              <span>Converse pelo WhatsApp</span>
               <i className="ri-whatsapp-line ml-2 text-lg"></i>
             </a>
           </div>

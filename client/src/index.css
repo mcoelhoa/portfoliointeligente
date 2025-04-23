@@ -107,6 +107,21 @@ body {
   100% { background-position: 0% 50%; }
 }
 
+@keyframes zoom-in-bounce {
+  0% { 
+    transform: scale(0.5); 
+    opacity: 0; 
+  }
+  70% { 
+    transform: scale(1.05); 
+    opacity: 1; 
+  }
+  100% { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }

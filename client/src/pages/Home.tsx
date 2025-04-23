@@ -3,7 +3,6 @@ import Hero from "@/components/Hero";
 import AgentSection from "@/components/AgentSection";
 import FeaturesSection from "@/components/FeaturesSection";
 import CallToAction from "@/components/CallToAction";
-import ContactForm from "@/components/ContactForm";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -14,7 +13,6 @@ export default function Home() {
       <AgentSection />
       <FeaturesSection />
       <CallToAction />
-      <ContactForm />
       <Footer />
     </div>
   );

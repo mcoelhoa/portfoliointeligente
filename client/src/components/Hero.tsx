@@ -11,21 +11,12 @@ export default function Hero() {
           <p className="text-lg md:text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
             Descubra agentes de IA especializados para automatizar tarefas, aumentar sua produtividade e impulsionar seus resultados de forma inteligente.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
+          <div className="flex justify-center items-center">
             <a 
               href="#agents" 
-              className="px-8 py-4 rounded-lg bg-gradient-to-r from-[var(--secondary-500)] to-[var(--secondary-400)] font-medium text-white hover:shadow-lg hover:shadow-[var(--secondary-500)]/20 transition-all duration-300 w-full sm:w-auto"
+              className="px-8 py-4 rounded-lg bg-gradient-to-r from-[var(--secondary-500)] to-[var(--secondary-400)] font-medium text-white hover:shadow-lg hover:shadow-[var(--secondary-500)]/20 transition-all duration-300 w-full sm:w-auto max-w-xs"
             >
               Explorar Agentes
-            </a>
-            <a 
-              href={whatsappLink}
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="px-8 py-4 rounded-lg bg-[var(--primary-800)] border border-[var(--secondary-400)]/30 font-medium text-white hover:bg-[var(--primary-700)] transition-all duration-300 w-full sm:w-auto flex items-center justify-center"
-            >
-              <span>Converse pelo Whatsapp</span>
-              <i className="ri-whatsapp-line ml-2 text-lg"></i>
             </a>
           </div>
         </div>
