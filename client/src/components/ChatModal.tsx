@@ -155,10 +155,12 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       setAudioRecorder(recorder);
       setIsRecording(true);
       
-      // Iniciar o temporizador para atualizar a duração em tempo real
+      // Iniciar o temporizador para atualizar a duração em tempo real (precisamente a cada segundo)
+      const startTime = Date.now();
       const timer = setInterval(() => {
-        setAudioDuration(prev => prev + 1);
-      }, 1000);
+        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+        setAudioDuration(elapsedSeconds);
+      }, 200); // Atualiza a cada 200ms para maior precisão visual
       setAudioTimer(timer);
       
       console.log("Gravação de áudio iniciada");
@@ -168,7 +170,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     }
   };
 
-  // Função para parar gravação de áudio
+  // Função para parar gravação de áudio e enviar
   const stopRecording = () => {
     if (audioRecorder && isRecording) {
       audioRecorder.stop();
@@ -180,6 +182,32 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       }
       
       console.log("Gravação de áudio finalizada");
+    }
+  };
+  
+  // Função para descartar o áudio gravado
+  const discardRecording = () => {
+    if (audioRecorder && isRecording) {
+      // Parar a gravação sem enviar o áudio
+      audioRecorder.stop();
+      
+      // Limpar o timer
+      if (audioTimer) {
+        clearInterval(audioTimer);
+        setAudioTimer(null);
+      }
+      
+      // Fechar as trilhas da stream
+      if (audioRecorder.stream) {
+        audioRecorder.stream.getTracks().forEach(track => track.stop());
+      }
+      
+      // Resetar o estado
+      setIsRecording(false);
+      setAudioChunks([]);
+      setAudioDuration(0);
+      
+      console.log("Gravação de áudio descartada");
     }
   };
   
@@ -651,30 +679,52 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             </div>
           )}
           
-          {/* Botão de gravação de áudio */}
-          <button 
-            onClick={isRecording ? stopRecording : startRecording}
-            className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center ${
-              isRecording ? 'bg-red-500 animate-pulse' : 'bg-[#3b4167] hover:bg-[#4b5187]'
-            } text-white transition-colors`}
-            title={isRecording ? "Parar gravação" : "Gravar áudio"}
-          >
-            <i className={`${isRecording ? 'ri-pause-fill' : 'ri-mic-fill'} text-xl`}></i>
-          </button>
-          
-          {/* Botão de envio de mensagem */}
-          <button 
-            onClick={isRecording ? stopRecording : handleSendMessage}
-            disabled={!isRecording && !inputValue.trim()}
-            className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center ${
-              isRecording || inputValue.trim() 
-                ? 'bg-[#5c5dec]' 
-                : 'bg-[#3b4167]'
-            } text-white`}
-            title={isRecording ? "Parar e enviar áudio" : "Enviar mensagem"}
-          >
-            <i className={isRecording ? "ri-send-plane-fill" : "ri-send-plane-fill"}></i>
-          </button>
+          {isRecording ? (
+            <>
+              {/* Botão de descarte de áudio (lixeira) quando estiver gravando */}
+              <button 
+                onClick={discardRecording}
+                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-gray-500 hover:bg-gray-600 text-white transition-colors"
+                title="Descartar gravação"
+              >
+                <i className="ri-delete-bin-line text-xl"></i>
+              </button>
+              
+              {/* Botão de envio quando estiver gravando (para o áudio e envia) */}
+              <button 
+                onClick={stopRecording}
+                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-[#5c5dec] text-white"
+                title="Parar e enviar áudio"
+              >
+                <i className="ri-send-plane-fill text-xl"></i>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Botão de gravação de áudio quando não estiver gravando */}
+              <button 
+                onClick={startRecording}
+                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-[#3b4167] hover:bg-[#4b5187] text-white transition-colors"
+                title="Gravar áudio"
+              >
+                <i className="ri-mic-fill text-xl"></i>
+              </button>
+              
+              {/* Botão de envio de mensagem de texto quando não estiver gravando */}
+              <button 
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim()}
+                className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center ${
+                  inputValue.trim() 
+                    ? 'bg-[#5c5dec]' 
+                    : 'bg-[#3b4167]'
+                } text-white`}
+                title="Enviar mensagem"
+              >
+                <i className="ri-send-plane-fill text-xl"></i>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
