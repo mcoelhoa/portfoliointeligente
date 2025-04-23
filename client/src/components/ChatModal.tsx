@@ -172,13 +172,61 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       
       console.log("Resposta do webhook:", webhookResponses);
       
-      if (webhookResponses && webhookResponses.length > 0) {
+      // Verifica se tem a palavra piada para usar resposta especial
+      if (messageText.toLowerCase().includes('piada')) {
+        const piadaResponse = [
+          {
+            messages: [
+              {
+                message: "Claro! Aqui vai uma piada:",
+                typeMessage: "text"
+              },
+              {
+                message: "Por que o computador foi ao médico?",
+                typeMessage: "text"
+              },
+              {
+                message: "Porque ele estava com um vírus!",
+                typeMessage: "text"
+              }
+            ]
+          }
+        ];
+        await addAgentMessagesWithDelay(piadaResponse);
+        return;
+      }
+      
+      // Detecta webhook respostas "Workflow was started" e responde com mensagem apropriada
+      if (webhookResponses && 
+          webhookResponses.length === 1 && 
+          webhookResponses[0].message === "Workflow was started") {
+        
+        // Resposta especial para "Workflow was started"
+        setTimeout(() => {
+          const workflowMessage: Message = {
+            id: Date.now() + 1,
+            content: "Sua solicitação está sendo processada. Logo retornaremos com uma resposta!",
+            type: 'text',
+            sender: 'agent',
+            timestamp: new Date()
+          };
+          
+          setMessages(prev => [...prev, workflowMessage]);
+          setIsTyping(false);
+        }, 1000);
+        
+        return;
+      }
+      
+      // Processar resposta normal do webhook
+      if (webhookResponses && webhookResponses.length > 0 && 
+          (webhookResponses[0].messages || webhookResponses[0].message)) {
         // Processar as respostas do webhook com delay
         await addAgentMessagesWithDelay(webhookResponses);
       } else {
         console.warn("Resposta do webhook vazia ou inválida, usando resposta gerada localmente");
         // Fallback apenas se não houver resposta do webhook
-        throw new Error("Resposta do webhook vazia");
+        throw new Error("Resposta do webhook vazia ou em formato inválido");
       }
     } catch (error) {
       console.error("Erro ao processar resposta do webhook:", error);
