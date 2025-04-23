@@ -1,4 +1,6 @@
 export default function CallToAction() {
+  const whatsappLink = "https://api.whatsapp.com/send/?phone=5524988582901&text=Ol%C3%A1%21+Vim+do+site+e+gostaria+de+saber+mais+sobre+os+agentes+de+IA.&type=phone_number&app_absent=0";
+  
   return (
     <section className="py-16 md:py-24 bg-gradient-to-r from-[var(--primary-800)] to-[var(--secondary-900)] relative overflow-hidden">
       <div className="absolute inset-0 opacity-20">
@@ -20,10 +22,13 @@ export default function CallToAction() {
               Começar Gratuitamente
             </a>
             <a 
-              href="#contact" 
-              className="px-8 py-4 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 font-medium text-white hover:bg-white/20 transition-all duration-300 w-full sm:w-auto"
+              href={whatsappLink} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-8 py-4 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 font-medium text-white hover:bg-white/20 transition-all duration-300 w-full sm:w-auto flex items-center justify-center"
             >
-              Falar com Especialista
+              <span>Falar com Especialista</span>
+              <i className="ri-whatsapp-line ml-2 text-lg"></i>
             </a>
           </div>
         </div>

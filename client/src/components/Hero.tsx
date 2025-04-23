@@ -1,4 +1,6 @@
 export default function Hero() {
+  const whatsappLink = "https://api.whatsapp.com/send/?phone=5524988582901&text=Ol%C3%A1%21+Vim+do+site+e+gostaria+de+saber+mais+sobre+os+agentes+de+IA.&type=phone_number&app_absent=0";
+  
   return (
     <section className="relative pt-10 pb-20 md:pt-20 md:pb-32 overflow-hidden">
       <div className="container mx-auto px-4">
@@ -17,10 +19,13 @@ export default function Hero() {
               Explorar Agentes
             </a>
             <a 
-              href="#about" 
-              className="px-8 py-4 rounded-lg bg-[var(--primary-800)] border border-[var(--secondary-400)]/30 font-medium text-white hover:bg-[var(--primary-700)] transition-all duration-300 w-full sm:w-auto"
+              href={whatsappLink}
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="px-8 py-4 rounded-lg bg-[var(--primary-800)] border border-[var(--secondary-400)]/30 font-medium text-white hover:bg-[var(--primary-700)] transition-all duration-300 w-full sm:w-auto flex items-center justify-center"
             >
-              Saiba Mais
+              <span>Saiba Mais</span>
+              <i className="ri-whatsapp-line ml-2 text-lg"></i>
             </a>
           </div>
         </div>
