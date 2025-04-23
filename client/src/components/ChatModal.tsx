@@ -242,13 +242,16 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       if (audioBlob.size > 100 * 1024) {
         console.log("Áudio muito grande, comprimindo...");
         // Exibir uma mensagem pro usuário de que o áudio está sendo processado
+        const finalDuration = audioDuration; // Captura a duração final
+        console.log(`Duração final do áudio sendo processado: ${finalDuration} segundos`);
+        
         const userMessage: Message = {
           id: Date.now(),
           content: "🎤 Processando áudio...",
           type: 'audio',
           sender: 'user',
           timestamp: new Date(),
-          duration: audioDuration
+          duration: finalDuration
         };
         
         setMessages(prev => [...prev, userMessage]);
@@ -276,6 +279,9 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           ]);
         } else {
           // Atualiza a mensagem para indicar que o áudio foi enviado
+          const finalDuration = audioDuration; // Captura a duração final
+          console.log(`Duração final do áudio normal: ${finalDuration} segundos`);
+          
           setMessages(prev => [
             ...prev.filter(m => m.content !== "🎤 Processando áudio..."), 
             {
@@ -284,7 +290,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
               type: 'audio',
               sender: 'user',
               timestamp: new Date(),
-              duration: audioDuration
+              duration: finalDuration
             }
           ]);
         }

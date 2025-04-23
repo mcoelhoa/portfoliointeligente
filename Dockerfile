@@ -1,38 +1,43 @@
-# Estágio de build - Usando Node 20 para otimização
-FROM node:20-alpine AS build
+# Etapa de compilação
+FROM node:20-alpine as builder
 
-# Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivos de dependências
+# Copiar arquivos de configuração e instalar dependências
 COPY package*.json ./
-
-# Instalar dependências
 RUN npm ci
 
-# Copiar todo o código fonte
+# Copiar o código-fonte
 COPY . .
 
 # Compilar a aplicação
 RUN npm run build
 
-# Estágio de produção - Usando Node 20 Alpine para menor tamanho
-FROM node:20-alpine AS production
+# Etapa de produção
+FROM node:20-alpine
 
-# Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar apenas os arquivos necessários do estágio de build
-COPY --from=build /app/package*.json ./
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/server ./server
+# Criar usuário não-root para segurança
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Definir porta da aplicação
-EXPOSE 3000
+# Copiar dependências e arquivos compilados
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
 
-# Definir variáveis de ambiente para produção
+# Copiar arquivo de inicialização e outros arquivos necessários
+COPY --from=builder /app/server ./server
+
+# Configurar variáveis de ambiente para produção
 ENV NODE_ENV=production
+ENV PORT=8080
 
-# Comando para iniciar a aplicação
-CMD ["node", "server/index.js"]
+# Expor a porta em que a aplicação será executada
+EXPOSE 8080
+
+# Mudar para o usuário não-root
+USER appuser
+
+# Iniciar a aplicação
+CMD ["node", "dist/index.js"]

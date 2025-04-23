@@ -1,12 +1,14 @@
-# Arquivos de node_modules
-node_modules
+# Controle de versão
+.git
+.github
+.gitignore
+.gitattributes
 
-# Arquivos de logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Dependências
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
 
 # Arquivos de ambiente
 .env
@@ -15,31 +17,32 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Arquivos de controle de versão
-.git
-.gitignore
+# Arquivos de compilação e caches
+/dist
+/build
+/.cache
+/.vscode
+/.idea
+*.log
 
-# Arquivos de Docker
-.dockerignore
-Dockerfile
-docker-compose*.yml
-
-# Arquivos de construção
-dist
-build
+# Arquivos do sistema
 .DS_Store
+Thumbs.db
 
 # Arquivos de teste
-coverage
-.nyc_output
+/coverage
+/test
+*.spec.js
+*.test.js
 
-# Arquivos de IDEs
-.idea
-.vscode
-*.swp
-*.swo
-
-# README e documentação
+# Arquivos de documentação
+/docs
 README.md
 CHANGELOG.md
-docs/
+LICENSE
+
+# Outros
+*.md
+!README*.md
+Dockerfile
+.dockerignore
