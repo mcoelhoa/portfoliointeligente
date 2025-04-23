@@ -14,9 +14,6 @@ interface Message {
   timestamp: Date;
 }
 
-// Webhook URL para enviar as mensagens
-const WEBHOOK_URL = 'https://n8nwebhook.unitmedia.cloud/webhook/portfolio';
-
 // Função para converter o nome do agente para um formato URL-friendly
 function convertToUrlFriendly(name: string): string {
   return name
@@ -27,7 +24,7 @@ function convertToUrlFriendly(name: string): string {
     .replace(/\s+/g, '-'); // substitui espaços por hífens
 }
 
-// Função para enviar mensagem para o webhook
+// Função para enviar mensagem para o webhook através do proxy no servidor
 async function sendMessageToWebhook(agentName: string, message: string) {
   try {
     const urlFriendlyName = convertToUrlFriendly(agentName);
@@ -38,7 +35,9 @@ async function sendMessageToWebhook(agentName: string, message: string) {
       typeMessage: "text"
     };
     
-    const response = await fetch(WEBHOOK_URL, {
+    console.log("Enviando mensagem para webhook:", payload);
+    
+    const response = await fetch('/api/webhook-proxy', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -48,12 +47,11 @@ async function sendMessageToWebhook(agentName: string, message: string) {
     
     if (!response.ok) {
       console.error('Erro ao enviar mensagem para o webhook');
+    } else {
+      console.log('Mensagem enviada com sucesso para o webhook');
     }
-    
-    return await response.json();
   } catch (error) {
-    console.error('Erro na requisição ao webhook:', error);
-    return null;
+    console.error('Erro ao enviar mensagem para o webhook:', error);
   }
 }
 
