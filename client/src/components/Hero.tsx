@@ -24,7 +24,7 @@ export default function Hero() {
               rel="noopener noreferrer"
               className="px-8 py-4 rounded-lg bg-[var(--primary-800)] border border-[var(--secondary-400)]/30 font-medium text-white hover:bg-[var(--primary-700)] transition-all duration-300 w-full sm:w-auto flex items-center justify-center"
             >
-              <span>Saiba Mais</span>
+              <span>Converse pelo Whatsapp</span>
               <i className="ri-whatsapp-line ml-2 text-lg"></i>
             </a>
           </div>
