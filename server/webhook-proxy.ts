@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Express, Request, Response } from 'express';
 
-const WEBHOOK_URL = 'https://n8nwebhook.unitmedia.cloud/webhook/portfolio';
+const WEBHOOK_URL = 'https://n8neditor.unitmedia.cloud/webhook-test/portfolio';
 
 // Mock da resposta do webhook para testes locais
 const MOCK_RESPONSE = [
