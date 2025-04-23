@@ -210,7 +210,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua mensagem..." 
-            className="flex-1 bg-[var(--primary-900)]/80 border border-[var(--primary-700)] rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--secondary-500)]"
+            className="flex-1 bg-[var(--primary-900)]/90 border border-[var(--primary-700)] rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--secondary-500)]"
           />
           <button 
             onClick={handleSendMessage}
