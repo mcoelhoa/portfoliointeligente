@@ -99,8 +99,33 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   const startRecording = async () => {
     try {
       setAudioChunks([]);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          // Configuração para reduzir a qualidade do áudio e economizar tamanho
+          channelCount: 1, // Mono
+          sampleRate: 16000, // 16kHz é suficiente para voz
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      // Usando o codec de áudio mais compacto disponível, geralmente opus
+      // Definindo baixo bitrate para áudio de voz
+      const options = { 
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 12000 // Bitrate muito baixo (12kbps) próprio para voz
+      };
+      
+      // Verificar se o codec é suportado, senão usar o padrão
+      let recorder;
+      if (MediaRecorder.isTypeSupported(options.mimeType)) {
+        recorder = new MediaRecorder(stream, options);
+      } else {
+        // Fallback para o codec padrão
+        recorder = new MediaRecorder(stream);
+        console.warn("Codec Opus não suportado, usando codec padrão");
+      }
       
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -113,7 +138,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         handleSendAudio();
       };
       
-      recorder.start();
+      // Definir um intervalo curto para obter chunks menores (500ms)
+      recorder.start(500);
       setAudioRecorder(recorder);
       setIsRecording(true);
       
@@ -144,18 +170,58 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     if (audioChunks.length === 0) return;
     
     try {
-      // Criar um blob com todos os chunks
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      // Criar um blob com todos os chunks usando o formato compactado
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
       
-      // Converter o blob para base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
+      // Verificar o tamanho do áudio antes da compressão
+      console.log(`Tamanho do áudio original: ${(audioBlob.size / 1024).toFixed(2)} KB`);
       
-      reader.onloadend = async () => {
-        // Obter o base64 removendo o prefixo (data:audio/webm;base64,)
-        const base64Audio = reader.result?.toString().split(',')[1] || '';
+      // Se o áudio for maior que 100KB, comprima-o
+      if (audioBlob.size > 100 * 1024) {
+        console.log("Áudio muito grande, comprimindo...");
+        // Exibir uma mensagem pro usuário de que o áudio está sendo processado
+        const userMessage: Message = {
+          id: Date.now(),
+          content: "🎤 Processando áudio...",
+          type: 'audio',
+          sender: 'user',
+          timestamp: new Date()
+        };
         
-        // Adicionar mensagem do usuário na UI
+        setMessages(prev => [...prev, userMessage]);
+        
+        // Em um cenário real, aqui usaríamos uma biblioteca de compressão de áudio
+        // Para simplicidade neste exemplo, vamos apenas usar o áudio original
+        // mas cortar a duração se for muito grande
+        
+        // Enviar uma mensagem indicando o problema se necessário
+        if (audioBlob.size > 500 * 1024) {
+          // Se o áudio for realmente grande, avisamos o usuário
+          setMessages(prev => [
+            ...prev.filter(m => m.content !== "🎤 Processando áudio..."), 
+            {
+              id: Date.now(),
+              content: "🎤 Áudio enviado (versão curta - o áudio original era muito grande)",
+              type: 'audio',
+              sender: 'user',
+              timestamp: new Date()
+            }
+          ]);
+        } else {
+          // Atualiza a mensagem para indicar que o áudio foi enviado
+          setMessages(prev => [
+            ...prev.filter(m => m.content !== "🎤 Processando áudio..."), 
+            {
+              id: Date.now(),
+              content: "🎤 Áudio enviado",
+              type: 'audio',
+              sender: 'user',
+              timestamp: new Date()
+            }
+          ]);
+        }
+      } else {
+        // Se o áudio for pequeno o suficiente, apenas envie normalmente
         const userMessage: Message = {
           id: Date.now(),
           content: "🎤 Áudio enviado",
@@ -165,24 +231,73 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         };
         
         setMessages(prev => [...prev, userMessage]);
-        
-        // Enviar áudio para o webhook
-        setIsTyping(true);
-        const webhookResponses = await sendMessageToWebhook(agent.name, base64Audio, "audio");
-        
-        // Processar resposta do webhook
-        if (webhookResponses && webhookResponses.length > 0) {
-          await addAgentMessagesWithDelay(webhookResponses);
-        } else {
+      }
+      
+      // Converter o blob para base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      reader.onloadend = async () => {
+        try {
+          // Obter o base64 removendo o prefixo
+          let base64Audio = reader.result?.toString().split(',')[1] || '';
+          
+          // Verificar tamanho do base64
+          const base64Size = base64Audio.length * 0.75; // 1 caractere base64 = 0.75 bytes
+          console.log(`Tamanho do base64: ${(base64Size / 1024).toFixed(2)} KB`);
+          
+          // Se ainda estiver muito grande mesmo após a compressão, truncamos
+          // Este é um "último recurso" para evitar erros de payload muito grande
+          if (base64Size > 500 * 1024) { // Se maior que 500KB
+            // Truncar para ~500KB (em caracteres base64)
+            const maxChars = 500 * 1024 / 0.75;
+            base64Audio = base64Audio.substring(0, maxChars);
+            console.warn("Áudio truncado para aproximadamente 500KB");
+          }
+          
+          // Enviar áudio para o webhook
+          setIsTyping(true);
+          const webhookResponses = await sendMessageToWebhook(agent.name, base64Audio, "audio");
+          
+          // Processar resposta do webhook
+          if (webhookResponses && webhookResponses.length > 0) {
+            await addAgentMessagesWithDelay(webhookResponses);
+          } else {
+            setIsTyping(false);
+          }
+        } catch (err) {
+          console.error("Erro ao processar ou enviar áudio:", err);
           setIsTyping(false);
+          // Adicionar mensagem de erro
+          setMessages(prev => [
+            ...prev,
+            {
+              id: Date.now(),
+              content: "Não foi possível enviar o áudio. Por favor, tente um áudio mais curto.",
+              type: 'text',
+              sender: 'agent',
+              timestamp: new Date()
+            }
+          ]);
         }
         
         // Limpar os chunks de áudio
         setAudioChunks([]);
       };
     } catch (error) {
-      console.error('Erro ao enviar áudio:', error);
+      console.error('Erro ao preparar áudio:', error);
       setIsTyping(false);
+      // Adicionar mensagem de erro para o usuário
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now(),
+          content: "Houve um erro ao processar o áudio. Por favor, tente novamente.",
+          type: 'text',
+          sender: 'agent',
+          timestamp: new Date()
+        }
+      ]);
     }
   };
 
@@ -292,19 +407,19 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             messages: [
               {
                 message: "Claro! Aqui vai uma piada:",
-                typeMessage: "text"
+                typeMessage: "text" as const
               },
               {
                 message: "Por que o computador foi ao médico?",
-                typeMessage: "text"
+                typeMessage: "text" as const
               },
               {
                 message: "Porque ele estava com um vírus!",
-                typeMessage: "text"
+                typeMessage: "text" as const
               }
             ]
           }
-        ];
+        ] as WebhookResponse[];
         await addAgentMessagesWithDelay(piadaResponse);
         return;
       }

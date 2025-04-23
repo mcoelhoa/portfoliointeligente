@@ -1,7 +1,11 @@
 import axios from 'axios';
 import { Express, Request, Response } from 'express';
+import bodyParser from 'body-parser';
 
 const WEBHOOK_URL = 'https://n8neditor.unitmedia.cloud/webhook-test/portfolio';
+
+// Aumentar limite para mensagens de áudio (padrão é 100kb)
+const jsonParser = bodyParser.json({ limit: '10mb' });
 
 // Mock da resposta do webhook para testes locais
 const MOCK_RESPONSE = [
@@ -27,8 +31,8 @@ const MOCK_RESPONSE = [
  * Registra uma rota de proxy para o webhook
  */
 export function setupWebhookProxy(app: Express) {
-  // Rota de proxy para o webhook
-  app.post('/api/webhook-proxy', async (req: Request, res: Response) => {
+  // Rota de proxy para o webhook com parser personalizado para lidar com arquivos grandes
+  app.post('/api/webhook-proxy', jsonParser, async (req: Request, res: Response) => {
     try {
       const { agent, message, typeMessage } = req.body;
       
