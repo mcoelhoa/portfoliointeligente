@@ -173,6 +173,9 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   // Função para parar gravação de áudio e enviar
   const stopRecording = () => {
     if (audioRecorder && isRecording) {
+      // Importante: Não precisamos fazer nada aqui além de parar a gravação
+      // O evento 'onstop' do audioRecorder irá chamar handleSendAudio automaticamente
+      // quando a gravação parar
       audioRecorder.stop();
       setIsRecording(false);
       
@@ -180,16 +183,6 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       if (audioRecorder.stream) {
         audioRecorder.stream.getTracks().forEach(track => track.stop());
       }
-      
-      console.log("Gravação de áudio finalizada");
-    }
-  };
-  
-  // Função para descartar o áudio gravado
-  const discardRecording = () => {
-    if (audioRecorder && isRecording) {
-      // Parar a gravação sem enviar o áudio
-      audioRecorder.stop();
       
       // Limpar o timer
       if (audioTimer) {
@@ -197,17 +190,40 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         setAudioTimer(null);
       }
       
-      // Fechar as trilhas da stream
-      if (audioRecorder.stream) {
-        audioRecorder.stream.getTracks().forEach(track => track.stop());
+      console.log("Gravação de áudio finalizada e será enviada");
+    }
+  };
+  
+  // Função para descartar o áudio gravado
+  const discardRecording = () => {
+    if (audioRecorder && isRecording) {
+      try {
+        // Primeiro desconectar o evento onstop para não acionar handleSendAudio
+        audioRecorder.onstop = null;
+        
+        // Parar a gravação sem enviar o áudio
+        audioRecorder.stop();
+        
+        // Limpar o timer
+        if (audioTimer) {
+          clearInterval(audioTimer);
+          setAudioTimer(null);
+        }
+        
+        // Fechar as trilhas da stream
+        if (audioRecorder.stream) {
+          audioRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Resetar o estado
+        setIsRecording(false);
+        setAudioChunks([]);
+        setAudioDuration(0);
+        
+        console.log("Gravação de áudio descartada");
+      } catch (error) {
+        console.error("Erro ao descartar gravação:", error);
       }
-      
-      // Resetar o estado
-      setIsRecording(false);
-      setAudioChunks([]);
-      setAudioDuration(0);
-      
-      console.log("Gravação de áudio descartada");
     }
   };
   
@@ -244,6 +260,9 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         // Enviar uma mensagem indicando o problema se necessário
         if (audioBlob.size > 500 * 1024) {
           // Se o áudio for realmente grande, avisamos o usuário
+          const finalDuration = audioDuration; // Captura a duração final
+          console.log(`Duração final do áudio grande: ${finalDuration} segundos`);
+          
           setMessages(prev => [
             ...prev.filter(m => m.content !== "🎤 Processando áudio..."), 
             {
@@ -252,7 +271,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
               type: 'audio',
               sender: 'user',
               timestamp: new Date(),
-              duration: audioDuration
+              duration: finalDuration
             }
           ]);
         } else {
@@ -271,13 +290,16 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         }
       } else {
         // Se o áudio for pequeno o suficiente, apenas envie normalmente
+        const finalDuration = audioDuration; // Captura a duração final do áudio
+        console.log(`Duração final do áudio: ${finalDuration} segundos`);
+        
         const userMessage: Message = {
           id: Date.now(),
           content: "🎤 Áudio enviado",
           type: 'audio',
           sender: 'user',
           timestamp: new Date(),
-          duration: audioDuration
+          duration: finalDuration
         };
         
         setMessages(prev => [...prev, userMessage]);
