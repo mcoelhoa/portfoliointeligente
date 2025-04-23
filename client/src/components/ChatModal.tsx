@@ -156,14 +156,23 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     // Simulate agent typing
     setIsTyping(true);
     
-    // Enviar mensagem do usuário para o webhook e obter resposta
-    const webhookResponses = await sendMessageToWebhook(agent.name, messageText);
-    
-    if (webhookResponses && webhookResponses.length > 0) {
-      // Processar as respostas do webhook com delay
-      await addAgentMessagesWithDelay(webhookResponses);
-    } else {
-      // Fallback para resposta gerada localmente
+    try {
+      // Enviar mensagem do usuário para o webhook e obter resposta
+      const webhookResponses = await sendMessageToWebhook(agent.name, messageText);
+      
+      console.log("Resposta do webhook:", webhookResponses);
+      
+      if (webhookResponses && webhookResponses.length > 0) {
+        // Processar as respostas do webhook com delay
+        await addAgentMessagesWithDelay(webhookResponses);
+      } else {
+        console.warn("Resposta do webhook vazia ou inválida, usando resposta gerada localmente");
+        // Fallback apenas se não houver resposta do webhook
+        throw new Error("Resposta do webhook vazia");
+      }
+    } catch (error) {
+      console.error("Erro ao processar resposta do webhook:", error);
+      // Fallback para resposta gerada localmente apenas em caso de erro
       setTimeout(async () => {
         const responseText = getAgentResponse(agent, messageText);
         
