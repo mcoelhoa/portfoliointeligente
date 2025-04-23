@@ -9,9 +9,16 @@ interface ChatModalProps {
 
 interface Message {
   id: number;
-  text: string;
+  content: string;
+  type: 'text' | 'audio' | 'image' | 'document' | 'video';
   sender: 'user' | 'agent';
   timestamp: Date;
+}
+
+// Interface para as respostas do webhook
+interface WebhookResponse {
+  message: string;
+  typeMessage: 'text' | 'audio' | 'image' | 'document' | 'video';
 }
 
 // Função para converter o nome do agente para um formato URL-friendly
@@ -25,7 +32,7 @@ function convertToUrlFriendly(name: string): string {
 }
 
 // Função para enviar mensagem para o webhook através do proxy no servidor
-async function sendMessageToWebhook(agentName: string, message: string) {
+async function sendMessageToWebhook(agentName: string, message: string): Promise<WebhookResponse[] | null> {
   try {
     const urlFriendlyName = convertToUrlFriendly(agentName);
     
@@ -47,11 +54,17 @@ async function sendMessageToWebhook(agentName: string, message: string) {
     
     if (!response.ok) {
       console.error('Erro ao enviar mensagem para o webhook');
+      return null;
     } else {
       console.log('Mensagem enviada com sucesso para o webhook');
+      
+      // Parse e retorna a resposta do webhook
+      const webhookResponses = await response.json();
+      return Array.isArray(webhookResponses) ? webhookResponses : null;
     }
   } catch (error) {
     console.error('Erro ao enviar mensagem para o webhook:', error);
+    return null;
   }
 }
 
@@ -69,7 +82,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         setMessages([
           {
             id: 1,
-            text: welcomeMessage,
+            content: welcomeMessage,
+            type: 'text',
             sender: 'agent',
             timestamp: new Date()
           }
@@ -84,21 +98,46 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     }
   }, [isOpen, agent]);
 
+  // Função para adicionar mensagens do agente com atraso sequencial
+  const addAgentMessagesWithDelay = async (responses: WebhookResponse[]) => {
+    setIsTyping(true);
+    
+    // Processar cada resposta do webhook sequencialmente com delay
+    for (let i = 0; i < responses.length; i++) {
+      // Espera 2 segundos antes de mostrar a próxima mensagem (exceto para a primeira)
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      const response = responses[i];
+      
+      const newMessage: Message = {
+        id: Date.now() + i,
+        content: response.message,
+        type: response.typeMessage,
+        sender: 'agent',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+    }
+    
+    setIsTyping(false);
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
     
     // Add user message to UI
     const userMessage: Message = {
       id: Date.now(),
-      text: inputValue,
+      content: inputValue,
+      type: 'text',
       sender: 'user',
       timestamp: new Date()
     };
     
     setMessages(prev => [...prev, userMessage]);
-    
-    // Enviar mensagem do usuário para o webhook
-    await sendMessageToWebhook(agent.name, inputValue);
     
     const messageText = inputValue;
     setInputValue('');
@@ -106,23 +145,29 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     // Simulate agent typing
     setIsTyping(true);
     
-    // Simulate agent response after a delay
-    setTimeout(async () => {
-      const responseText = getAgentResponse(agent, messageText);
-      
-      const agentResponse: Message = {
-        id: Date.now() + 1,
-        text: responseText,
-        sender: 'agent',
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, agentResponse]);
-      setIsTyping(false);
-      
-      // Enviar resposta do agente para o webhook
-      await sendMessageToWebhook(agent.name, responseText);
-    }, 1500);
+    // Enviar mensagem do usuário para o webhook e obter resposta
+    const webhookResponses = await sendMessageToWebhook(agent.name, messageText);
+    
+    if (webhookResponses && webhookResponses.length > 0) {
+      // Processar as respostas do webhook com delay
+      await addAgentMessagesWithDelay(webhookResponses);
+    } else {
+      // Fallback para resposta gerada localmente
+      setTimeout(async () => {
+        const responseText = getAgentResponse(agent, messageText);
+        
+        const agentResponse: Message = {
+          id: Date.now() + 1,
+          content: responseText,
+          type: 'text',
+          sender: 'agent',
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, agentResponse]);
+        setIsTyping(false);
+      }, 1500);
+    }
   };
 
   // Handle Enter key press
@@ -181,7 +226,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
                   ? 'bg-[#5c5dec] text-white rounded-tr-none' 
                   : 'bg-[#2d3a5e] text-white rounded-tl-none'}`}
               >
-                <p>{message.text}</p>
+                <p>{message.content}</p>
                 <span className="text-xs opacity-70 block text-right mt-1">
                   {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </span>
