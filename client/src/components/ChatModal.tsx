@@ -48,25 +48,33 @@ async function sendMessageToWebhook(
     
     let response;
     
-    // Se for um áudio (Blob), enviamos como FormData
+    // Se for um áudio (Blob), convertemos para base64 e enviamos como JSON
     if (typeMessage === "audio" && message instanceof Blob) {
-      const formData = new FormData();
-      formData.append('agent', urlFriendlyName);
-      formData.append('typeMessage', typeMessage);
+      // Converter o blob para base64
+      const base64Audio = await blobToBase64(message);
       
-      // Adicionar o arquivo .webm com nome específico para facilitar o processamento no servidor
-      formData.append('audioFile', message, `audio_${Date.now()}.webm`);
+      if (!base64Audio) {
+        throw new Error("Falha ao converter áudio para base64");
+      }
       
-      console.log("Enviando áudio via FormData para webhook:", {
+      console.log("Enviando áudio como base64 para webhook:", {
         agent: urlFriendlyName,
         typeMessage,
-        audioSize: `${(message.size / 1024).toFixed(2)}KB`
+        audioSize: `${(message.size / 1024).toFixed(2)}KB`,
+        base64Size: `${base64Audio.length} caracteres`
       });
       
-      // Enviar sem cabeçalho Content-Type para permitir que o navegador defina o boundary correto
+      // Enviar como JSON com o áudio em base64
       response = await fetch('/api/webhook-proxy', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agent: urlFriendlyName,
+          message: base64Audio,
+          typeMessage: typeMessage
+        })
       });
     } else {
       // Para mensagens de texto, continua enviando como JSON
@@ -76,7 +84,11 @@ async function sendMessageToWebhook(
         typeMessage: typeMessage
       };
       
-      console.log("Enviando mensagem para webhook:", payload);
+      console.log("Enviando mensagem para webhook:", {
+        agent: urlFriendlyName,
+        typeMessage,
+        messageLength: typeof message === 'string' ? message.length : 'N/A'
+      });
       
       response = await fetch('/api/webhook-proxy', {
         method: 'POST',
@@ -325,9 +337,11 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           throw new Error("Falha ao converter áudio para base64");
         }
         
-        // Enviar o áudio como JSON com base64
-        console.log("Enviando áudio diretamente como base64");
+        // Enviar o áudio sempre como JSON com base64 diretamente para o webhook principal
+        console.log("Enviando áudio diretamente como base64 para o webhook");
+        console.log(`Tamanho do áudio em base64: ${base64Audio.length} caracteres`);
         
+        // Sempre usar a mesma rota para envio de todas as mensagens
         const response = await fetch('/api/webhook-proxy', {
           method: 'POST',
           headers: {

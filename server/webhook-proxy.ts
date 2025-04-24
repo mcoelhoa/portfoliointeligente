@@ -259,15 +259,45 @@ export function setupWebhookProxy(app: Express) {
       const audioContent = fs.readFileSync(req.file.path);
       const audioBase64 = audioContent.toString('base64');
       
+      console.log(`[WebhookProxy] Áudio convertido para base64, tamanho: ${audioBase64.length} caracteres`);
+      console.log(`[WebhookProxy] Primeiros 50 caracteres do base64: ${audioBase64.substring(0, 50)}...`);
+      
       // Dados para enviar ao webhook
       const data = {
         agent,
         message: audioBase64,
-        typeMessage 
+        typeMessage
       };
       
-      // Tenta enviar para os webhooks configurados
-      const response = await tryMultipleWebhooks(data);
+      console.log(`[WebhookProxy] Enviando áudio para webhook com tipo: ${typeMessage}`);
+      
+      // Forçar envio diretamente para todas as URLs de webhook disponíveis
+      // para garantir que pelo menos uma receba o áudio
+      let responseReceived = false;
+      let successResponse = null;
+      
+      // Tentar cada URL de webhook individualmente
+      for (const webhookUrl of WEBHOOK_URLS) {
+        try {
+          console.log(`[WebhookProxy] Tentando enviar áudio para webhook: ${webhookUrl}`);
+          
+          const response = await axios.post(webhookUrl, data, {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            timeout: 15000 // 15 segundos de timeout para áudio (maior que o normal)
+          });
+          
+          if (response.data) {
+            console.log(`[WebhookProxy] Resposta recebida de ${webhookUrl}: ${JSON.stringify(response.data).substring(0, 100)}...`);
+            responseReceived = true;
+            successResponse = response;
+            break; // Se uma URL funcionou, não precisa tentar as outras
+          }
+        } catch (error) {
+          console.warn(`[WebhookProxy] Erro ao enviar áudio para ${webhookUrl}:`, (error as any).message);
+        }
+      }
       
       // Limpar o arquivo temporário após enviá-lo
       try {
@@ -278,12 +308,12 @@ export function setupWebhookProxy(app: Express) {
       }
       
       // Se conseguimos uma resposta de qualquer URL, retorne-a
-      if (response && response.data) {
-        return res.status(response.status).json(response.data);
+      if (responseReceived && successResponse) {
+        return res.status(successResponse.status).json(successResponse.data);
       }
       
       // Se chegamos aqui, nenhuma das URLs funcionou, use resposta padrão
-      console.log('[WebhookProxy] Usando resposta padrão para áudio');
+      console.log('[WebhookProxy] Todas as URLs do webhook falharam, usando resposta padrão para áudio');
       return res.status(200).json([
         {
           messages: [
