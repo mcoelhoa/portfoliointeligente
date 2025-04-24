@@ -64,12 +64,19 @@ export default function AgentSection() {
         </div>
       </div>
       
-      {/* Nexus-style wave transition to the next section - corrected curve */}
-      <div className="absolute -bottom-2 left-0 w-full h-20 z-0 overflow-hidden">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="w-full h-full">
+      {/* Nexus-style wave transition */}
+      <div className="absolute -bottom-1 left-0 w-full overflow-hidden" style={{ height: "150px" }}>
+        <svg 
+          viewBox="0 0 1200 120" 
+          preserveAspectRatio="none" 
+          xmlns="http://www.w3.org/2000/svg" 
+          className="absolute bottom-0 w-full h-full"
+          style={{ transform: "translateY(1px)" }}
+        >
           <path 
-            d="M0,64L48,80C96,96,192,128,288,144C384,160,480,160,576,138.7C672,117,768,75,864,80C960,85,1056,139,1152,144C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" 
-            fill="var(--primary-900)"
+            d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86A600.21,600.21,0,0,1,0,27.35V120H1200V95.8C1132.19,118.92,1055.71,111.31,985.66,92.83Z" 
+            fill="var(--primary-900)" 
+            className="shape-fill"
           ></path>
         </svg>
       </div>
