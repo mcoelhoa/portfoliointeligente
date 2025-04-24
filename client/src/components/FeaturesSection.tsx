@@ -2,7 +2,7 @@ import { features } from "@/data/features";
 
 export default function FeaturesSection() {
   return (
-    <section id="about" className="pt-16 pb-16 md:pt-24 md:pb-20 relative section-dark">
+    <section id="about" className="pt-16 pb-20 md:pt-24 md:pb-24 relative section-dark">
       <div className="container mx-auto px-4">
         <div className="text-center mb-20">
           <span className="inline-block py-1 px-3 rounded-full bg-[var(--secondary-600)]/10 text-[var(--secondary-500)] text-sm font-semibold mb-4 transform transition-transform hover:scale-105 duration-300">
@@ -43,7 +43,24 @@ export default function FeaturesSection() {
           ))}
         </div>
       </div>
-
+      
+      {/* Smooth transition to next section */}
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ zIndex: 1 }}>
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 1440 100" 
+          preserveAspectRatio="none"
+          width="100%" 
+          height="100"
+          style={{ display: 'block', marginBottom: '-1px' }}
+        >
+          <path 
+            fill="white" 
+            d="M0,40L48,46.7C96,53,192,67,288,66.7C384,67,480,53,576,43.3C672,33,768,27,864,33.3C960,40,1056,60,1152,66.7C1248,73,1344,67,1392,63.3L1440,60L1440,100L1392,100C1344,100,1248,100,1152,100C1056,100,960,100,864,100C768,100,672,100,576,100C480,100,384,100,288,100C192,100,96,100,48,100L0,100Z"
+            opacity="1"
+          ></path>
+        </svg>
+      </div>
     </section>
   );
 }

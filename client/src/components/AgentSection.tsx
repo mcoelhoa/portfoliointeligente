@@ -16,7 +16,7 @@ export default function AgentSection() {
   };
 
   return (
-    <section id="agents" className="pt-16 pb-16 md:pt-20 md:pb-20 relative section-light">
+    <section id="agents" className="pt-16 pb-20 md:pt-20 md:pb-24 relative section-light">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <span className="inline-block py-1 px-3 rounded-full bg-[var(--primary-900)]/10 text-[var(--primary-900)] text-sm font-semibold mb-4 transform transition-transform hover:scale-105 duration-300">
@@ -63,7 +63,24 @@ export default function AgentSection() {
           )}
         </div>
       </div>
-
+      
+      {/* Smooth transition to next section */}
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ zIndex: 1 }}>
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 1440 100" 
+          preserveAspectRatio="none"
+          width="100%" 
+          height="100"
+          style={{ display: 'block', marginBottom: '-1px' }}
+        >
+          <path 
+            fill="#011D42" 
+            d="M0,20L48,26.7C96,33,192,47,288,53.3C384,60,480,60,576,53.3C672,47,768,33,864,33.3C960,33,1056,47,1152,53.3C1248,60,1344,60,1392,60L1440,60L1440,100L1392,100C1344,100,1248,100,1152,100C1056,100,960,100,864,100C768,100,672,100,576,100C480,100,384,100,288,100C192,100,96,100,48,100L0,100Z"
+            opacity="1"
+          ></path>
+        </svg>
+      </div>
     </section>
   );
 }
