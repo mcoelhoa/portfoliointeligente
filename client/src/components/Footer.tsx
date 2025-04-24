@@ -4,10 +4,10 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center text-center">
           <div className="flex items-center mb-4">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] flex items-center justify-center mr-3 shadow-lg shadow-[#FF416C]/20">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--secondary-500)] to-[var(--accent-500)] flex items-center justify-center mr-3 shadow-lg shadow-[var(--secondary-500)]/20">
               <i className="ri-brain-line text-xl text-white"></i>
             </div>
-            <h2 className="text-3xl font-tech font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#FF416C] to-[#FF4B2B]">AIGents</h2>
+            <h2 className="text-3xl font-tech font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--secondary-400)] to-[var(--accent-400)]">AIGents</h2>
           </div>
           
           <p className="text-gray-300 max-w-lg mx-auto mb-8 text-lg">

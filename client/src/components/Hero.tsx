@@ -14,7 +14,7 @@ export default function Hero() {
           <div className="flex justify-center items-center">
             <a 
               href="#agents" 
-              className="px-8 py-4 rounded-lg bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] font-medium text-white hover:shadow-lg hover:shadow-[#FF416C]/40 transition-all duration-300 w-full sm:w-auto max-w-xs"
+              className="px-8 py-4 rounded-lg bg-gradient-to-r from-[var(--secondary-500)] to-[var(--secondary-400)] font-medium text-white hover:shadow-lg hover:shadow-[var(--secondary-500)]/20 transition-all duration-300 w-full sm:w-auto max-w-xs"
             >
               Explorar Agentes
             </a>
