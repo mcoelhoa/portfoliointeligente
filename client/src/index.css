@@ -98,22 +98,7 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.2;
 }
 
-/* Section dividers with curved shapes */
-.section-divider {
-  position: relative;
-}
-
-.section-divider::after {
-  content: '';
-  position: absolute;
-  bottom: -50px;
-  left: 0;
-  width: 100%;
-  height: 100px;
-  background-color: inherit;
-  border-radius: 0 0 50% 50% / 0 0 100px 100px;
-  z-index: 1;
-}
+/* Section dividers with curved shapes - removed */
 
 /* Alternating section backgrounds */
 .section-light {
