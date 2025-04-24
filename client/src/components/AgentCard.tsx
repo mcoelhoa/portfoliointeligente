@@ -30,7 +30,7 @@ export default function AgentCard({ agent }: AgentCardProps) {
           </p>
           <div className="text-center mt-auto">
             <button 
-              className="test-btn px-6 py-3 rounded-lg font-medium text-white flex items-center justify-center mx-auto"
+              className="px-6 py-3 rounded-lg font-medium text-white flex items-center justify-center mx-auto bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:shadow-lg hover:shadow-[#FF416C]/40 transition-all duration-300"
               onClick={handleOpenChat}
             >
               <span>TESTAR AGORA</span>
