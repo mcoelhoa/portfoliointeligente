@@ -2,8 +2,15 @@ import axios from 'axios';
 import { Express, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 
-// URL atualizada do webhook
-const WEBHOOK_URL = 'https://n8neditor.unitmedia.cloud/webhook/portfolio';
+// URLs do webhook para tentativas alternativas
+const WEBHOOK_URLS = [
+  'https://n8neditor.unitmedia.cloud/webhook/portfolio',
+  'https://n8neditor.unitmedia.cloud/webhook-test/portfolio',
+  'https://n8n.unitmedia.cloud/webhook/portfolio'
+];
+
+// URL atual utilizada
+const WEBHOOK_URL = WEBHOOK_URLS[0];
 
 // Aumentar limite para mensagens de áudio (padrão é 100kb)
 const jsonParser = bodyParser.json({ limit: '10mb' });

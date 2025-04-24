@@ -228,14 +228,50 @@ export function useWebSocket(
     }
   }, [reconnectAttempts]);
   
-  // Conectar automaticamente ao montar o componente
+  // Conectar automaticamente ao montar o componente, apenas se autoConnect for true
   useEffect(() => {
-    createWebSocket();
-    
-    // Limpar na desmontagem
-    return () => {
-      disconnect();
-    };
+    // Verificar se a página está em primeiro plano para evitar conexões desnecessárias
+    if (document.visibilityState === 'visible') {
+      createWebSocket();
+      
+      console.log('[WebSocket Hook] Iniciando conexão WebSocket...');
+      
+      // Evento para reconectar quando a visibilidade da página mudar
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible' && 
+            (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN)) {
+          console.log('[WebSocket Hook] Página visível novamente, reconectando...');
+          createWebSocket();
+        }
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Limpar na desmontagem
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        disconnect();
+        console.log('[WebSocket Hook] Conexão WebSocket encerrada na desmontagem');
+      };
+    } else {
+      console.log('[WebSocket Hook] Página não está visível, adiando conexão WebSocket');
+      
+      // Se a página não estiver visível, adiar a conexão
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          console.log('[WebSocket Hook] Página visível agora, iniciando conexão WebSocket...');
+          createWebSocket();
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+        }
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        disconnect();
+      };
+    }
   }, [createWebSocket, disconnect]);
   
   return {
