@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Agent } from '@/data/agents';
 
 interface ChatModalProps {
@@ -97,6 +97,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   const [audioTimer, setAudioTimer] = useState<NodeJS.Timeout | null>(null);
   const [audioRecorder, setAudioRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  
   // Estado para controlar a reprodução de áudio
   const [currentAudio, setCurrentAudio] = useState<{
     audio: HTMLAudioElement | null;
@@ -108,337 +109,331 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     isPlaying: false
   });
 
-  // Função para iniciar gravação de áudio
-  const startRecording = async () => {
+  // Referência ao bloco de áudio atual para manter consistência entre renders
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioDurationRef = useRef<number>(0);
+  
+  // Atualizar as referências quando os estados mudarem
+  useEffect(() => {
+    audioChunksRef.current = audioChunks;
+  }, [audioChunks]);
+  
+  useEffect(() => {
+    audioDurationRef.current = audioDuration;
+  }, [audioDuration]);
+  
+  // Função para enviar mensagem de áudio ao webhook
+  const processAndSendAudio = useCallback(async (audioBlob: Blob, duration: number) => {
+    if (!audioBlob || audioBlob.size === 0) {
+      console.error("Blob de áudio vazio, não é possível processar");
+      return;
+    }
+    
     try {
-      // Resetar o estado da gravação
+      console.log(`Processando áudio de ${duration}s, tamanho: ${(audioBlob.size/1024).toFixed(2)}KB`);
+      
+      // Criar mensagem para o usuário
+      const messageId = Date.now();
+      const isLargeAudio = audioBlob.size > 100 * 1024;
+      
+      // Adicionar mensagem inicial
+      const userMessage: Message = {
+        id: messageId,
+        content: isLargeAudio ? "🎤 Processando áudio..." : "🎤 Áudio enviado",
+        type: 'audio',
+        sender: 'user',
+        timestamp: new Date(),
+        duration: duration
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Converter para base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          try {
+            const base64 = reader.result?.toString().split(',')[1] || '';
+            resolve(base64);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = err => reject(err);
+      });
+      
+      // Verificar tamanho do base64
+      const base64Size = base64Data.length * 0.75; // 1 caractere base64 = 0.75 bytes
+      console.log(`Tamanho do áudio em base64: ${(base64Size/1024).toFixed(2)}KB`);
+      
+      // Atualizar mensagem se necessário
+      if (isLargeAudio) {
+        const finalContent = base64Size > 500 * 1024 
+          ? "🎤 Áudio enviado (versão reduzida - o original era muito grande)"
+          : "🎤 Áudio enviado";
+        
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId ? {...msg, content: finalContent} : msg
+        ));
+      }
+      
+      // Preparar áudio para envio (reduzindo tamanho se necessário)
+      let processedBase64 = base64Data;
+      if (base64Size > 500 * 1024) {
+        const maxChars = Math.floor(500 * 1024 / 0.75);
+        processedBase64 = base64Data.substring(0, maxChars);
+        console.warn("Áudio truncado para aproximadamente 500KB");
+      }
+      
+      // Enviar para o webhook
+      setIsTyping(true);
+      const webhookResponses = await sendMessageToWebhook(agent.name, processedBase64, "audio");
+      
+      // Processar resposta
+      if (webhookResponses && webhookResponses.length > 0) {
+        await addAgentMessagesWithDelay(webhookResponses);
+      } else {
+        setIsTyping(false);
+      }
+      
+    } catch (error) {
+      console.error('Erro ao processar áudio:', error);
+      setIsTyping(false);
+      
+      // Adicionar mensagem de erro
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        content: "Houve um erro ao processar o áudio. Por favor, tente novamente.",
+        type: 'text',
+        sender: 'agent',
+        timestamp: new Date()
+      }]);
+    }
+  }, [agent.name]);
+  
+  // Função para iniciar gravação de áudio
+  const startRecording = useCallback(async () => {
+    try {
+      // Limpar gravação anterior se existir
+      if (audioRecorder) {
+        try {
+          if (audioRecorder.state === 'recording') {
+            audioRecorder.onstop = null; // Remover callback existente
+            audioRecorder.stop();
+          }
+          
+          if (audioRecorder.stream) {
+            audioRecorder.stream.getTracks().forEach(track => track.stop());
+          }
+        } catch (err) {
+          console.warn("Erro ao limpar gravação anterior:", err);
+        }
+      }
+      
+      // Resetar estados
       setAudioChunks([]);
       setAudioDuration(0);
+      setIsRecording(false);
       
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      if (audioTimer) {
+        clearInterval(audioTimer);
+        setAudioTimer(null);
+      }
+      
+      // Configurar e iniciar nova gravação
+      console.log("Iniciando nova gravação de áudio...");
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          // Configuração para reduzir a qualidade do áudio e economizar tamanho
           channelCount: 1, // Mono
-          sampleRate: 16000, // 16kHz é suficiente para voz
+          sampleRate: 16000, // 16kHz
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         }
       });
       
-      // Usando o codec de áudio mais compacto disponível, geralmente opus
-      // Definindo baixo bitrate para áudio de voz
-      const options = { 
+      // Configurar recorder com baixo bitrate
+      const options = {
         mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 12000 // Bitrate muito baixo (12kbps) próprio para voz
+        audioBitsPerSecond: 12000 // 12kbps para áudio de voz
       };
       
-      // Verificar se o codec é suportado, senão usar o padrão
+      // Verificar suporte ao codec
       let recorder;
       if (MediaRecorder.isTypeSupported(options.mimeType)) {
         recorder = new MediaRecorder(stream, options);
       } else {
-        // Fallback para o codec padrão
         recorder = new MediaRecorder(stream);
         console.warn("Codec Opus não suportado, usando codec padrão");
       }
       
+      // Capturar chunks de áudio
+      const chunks: Blob[] = [];
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
-          setAudioChunks(chunks => [...chunks, e.data]);
+          chunks.push(e.data);
+          setAudioChunks(prev => [...prev, e.data]);
         }
       };
       
-      recorder.onstop = () => {
-        // Quando a gravação parar, envia o áudio
-        handleSendAudio();
+      // Configurar ação ao parar gravação
+      recorder.onstop = async () => {
+        console.log("Gravação finalizada, processando...");
         
-        // Limpar o timer quando a gravação parar
+        // Limpar timer
         if (audioTimer) {
           clearInterval(audioTimer);
           setAudioTimer(null);
         }
+        
+        // Parar trilhas
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Processar áudio capturado
+        if (chunks.length > 0) {
+          const finalDuration = audioDurationRef.current;
+          const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+          
+          // Enviar áudio
+          console.log(`Preparando envio de áudio: ${chunks.length} chunks, ${finalDuration}s`);
+          await processAndSendAudio(audioBlob, finalDuration);
+        } else {
+          console.warn("Nenhum dado capturado na gravação");
+        }
+        
+        // Resetar estado
+        setIsRecording(false);
       };
       
-      // Definir um intervalo curto para obter chunks menores (500ms)
+      // Iniciar gravação com chunks a cada 500ms
       recorder.start(500);
       setAudioRecorder(recorder);
       setIsRecording(true);
       
-      // Iniciar o temporizador para atualizar a duração em tempo real (precisamente a cada segundo)
+      // Iniciar timer para duração
       const startTime = Date.now();
       const timer = setInterval(() => {
-        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-        setAudioDuration(elapsedSeconds);
-      }, 200); // Atualiza a cada 200ms para maior precisão visual
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        setAudioDuration(elapsed);
+      }, 200); // Atualiza a cada 200ms
+      
       setAudioTimer(timer);
       
-      console.log("Gravação de áudio iniciada");
     } catch (error) {
-      console.error("Erro ao iniciar gravação de áudio:", error);
-      alert("Não foi possível iniciar a gravação de áudio. Verifique se seu navegador tem permissão para acessar o microfone.");
-    }
-  };
-
-  // Função para parar gravação de áudio e enviar
-  const stopRecording = () => {
-    if (audioRecorder && isRecording) {
-      console.log("Parando gravação para enviar áudio...");
+      console.error("Erro ao iniciar gravação:", error);
+      alert("Não foi possível acessar o microfone. Verifique as permissões do seu navegador.");
       
-      try {
-        // Verificar se o audioRecorder está em um estado que permite parar
-        if (audioRecorder.state === 'recording') {
-          // O evento 'onstop' do audioRecorder irá chamar handleSendAudio automaticamente
-          audioRecorder.stop();
-          console.log("Gravação de áudio finalizada");
-        } else {
-          console.warn("Gravador em estado inválido:", audioRecorder.state);
-          // Se o gravador não estiver em estado 'recording', chamar handleSendAudio diretamente
-          if (audioChunks.length > 0) {
-            console.log("Enviando chunks de áudio existentes...");
-            handleSendAudio();
-          }
-        }
-        
-        // Fechar as trilhas da stream
-        if (audioRecorder.stream) {
-          audioRecorder.stream.getTracks().forEach(track => track.stop());
-        }
-        
-        // Limpar o timer
-        if (audioTimer) {
-          clearInterval(audioTimer);
-          setAudioTimer(null);
-        }
-        
-        setIsRecording(false);
-      } catch (error) {
-        console.error("Erro ao parar gravação:", error);
-        setIsRecording(false);
-        // Se ocorrer um erro, tentar enviar os chunks existentes, se houver
-        if (audioChunks.length > 0) {
-          handleSendAudio();
-        }
+      // Resetar estados em caso de erro
+      setIsRecording(false);
+      setAudioChunks([]);
+      setAudioDuration(0);
+      
+      if (audioTimer) {
+        clearInterval(audioTimer);
+        setAudioTimer(null);
       }
     }
-  };
+  }, [audioRecorder, audioTimer, processAndSendAudio]);
   
-  // Função para descartar o áudio gravado
-  const discardRecording = () => {
+  // Função para parar gravação de áudio
+  const stopRecording = useCallback(() => {
+    try {
+      if (!isRecording || !audioRecorder) {
+        console.warn("Nenhuma gravação ativa para parar");
+        setIsRecording(false);
+        return;
+      }
+      
+      console.log("Parando gravação de áudio...");
+      
+      // Capturar valores atuais
+      const currentChunks = [...audioChunksRef.current];
+      const finalDuration = audioDurationRef.current;
+      
+      // Tentar parar gravador
+      if (audioRecorder.state === 'recording') {
+        // O callback onstop cuidará do envio
+        audioRecorder.stop();
+      } else {
+        // Se já parou por algum motivo, mas temos chunks, enviar manualmente
+        if (currentChunks.length > 0) {
+          const audioBlob = new Blob(currentChunks, { type: 'audio/webm;codecs=opus' });
+          processAndSendAudio(audioBlob, finalDuration);
+        }
+      }
+      
+      // Limpar timer
+      if (audioTimer) {
+        clearInterval(audioTimer);
+        setAudioTimer(null);
+      }
+      
+      // Parar trilhas
+      if (audioRecorder.stream) {
+        audioRecorder.stream.getTracks().forEach(track => track.stop());
+      }
+      
+      // Resetar estado
+      setIsRecording(false);
+      
+    } catch (error) {
+      console.error("Erro ao parar gravação:", error);
+      
+      // Tentar recuperação de emergência
+      setIsRecording(false);
+      
+      if (audioTimer) {
+        clearInterval(audioTimer);
+        setAudioTimer(null);
+      }
+      
+      // Se temos chunks, tente enviar mesmo com erro
+      const chunks = audioChunksRef.current;
+      if (chunks.length > 0) {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+        processAndSendAudio(audioBlob, audioDurationRef.current);
+      }
+    }
+  }, [isRecording, audioRecorder, audioTimer, processAndSendAudio]);
+  
+  // Função para descartar gravação sem enviar
+  const discardRecording = useCallback(() => {
     if (audioRecorder && isRecording) {
       try {
-        // Primeiro desconectar o evento onstop para não acionar handleSendAudio
+        // Desativar callback para não processar o áudio
         audioRecorder.onstop = null;
         
-        // Parar a gravação sem enviar o áudio
+        // Parar gravação
         audioRecorder.stop();
         
-        // Limpar o timer
+        // Limpar recursos
         if (audioTimer) {
           clearInterval(audioTimer);
           setAudioTimer(null);
         }
         
-        // Fechar as trilhas da stream
         if (audioRecorder.stream) {
           audioRecorder.stream.getTracks().forEach(track => track.stop());
         }
         
-        // Resetar o estado
+        // Resetar estados
         setIsRecording(false);
         setAudioChunks([]);
         setAudioDuration(0);
         
-        console.log("Gravação de áudio descartada");
+        console.log("Gravação descartada");
       } catch (error) {
         console.error("Erro ao descartar gravação:", error);
+        setIsRecording(false);
       }
     }
-  };
+  }, [audioRecorder, isRecording, audioTimer]);
   
-  // Função para enviar o áudio gravado para o webhook
-  const handleSendAudio = async () => {
-    if (audioChunks.length === 0) return;
-    
-    try {
-      // Criar um blob com todos os chunks usando o formato compactado
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-      
-      // Verificar o tamanho do áudio antes da compressão
-      console.log(`Tamanho do áudio original: ${(audioBlob.size / 1024).toFixed(2)} KB`);
-      
-      // Se o áudio for maior que 100KB, comprima-o
-      if (audioBlob.size > 100 * 1024) {
-        console.log("Áudio muito grande, comprimindo...");
-        // Exibir uma mensagem pro usuário de que o áudio está sendo processado
-        const finalDuration = audioDuration; // Captura a duração final
-        console.log(`Duração final do áudio sendo processado: ${finalDuration} segundos`);
-        
-        const userMessage: Message = {
-          id: Date.now(),
-          content: "🎤 Processando áudio...",
-          type: 'audio',
-          sender: 'user',
-          timestamp: new Date(),
-          duration: finalDuration
-        };
-        
-        setMessages(prev => [...prev, userMessage]);
-        
-        // Em um cenário real, aqui usaríamos uma biblioteca de compressão de áudio
-        // Para simplicidade neste exemplo, vamos apenas usar o áudio original
-        // mas cortar a duração se for muito grande
-        
-        // Enviar uma mensagem indicando o problema se necessário
-        if (audioBlob.size > 500 * 1024) {
-          // Se o áudio for realmente grande, avisamos o usuário
-          const finalDuration = audioDuration; // Captura a duração final
-          console.log(`Duração final do áudio grande: ${finalDuration} segundos`);
-          
-          setMessages(prev => [
-            ...prev.filter(m => m.content !== "🎤 Processando áudio..."), 
-            {
-              id: Date.now(),
-              content: "🎤 Áudio enviado (versão curta - o áudio original era muito grande)",
-              type: 'audio',
-              sender: 'user',
-              timestamp: new Date(),
-              duration: finalDuration
-            }
-          ]);
-        } else {
-          // Atualiza a mensagem para indicar que o áudio foi enviado
-          const finalDuration = audioDuration; // Captura a duração final
-          console.log(`Duração final do áudio normal: ${finalDuration} segundos`);
-          
-          setMessages(prev => [
-            ...prev.filter(m => m.content !== "🎤 Processando áudio..."), 
-            {
-              id: Date.now(),
-              content: "🎤 Áudio enviado",
-              type: 'audio',
-              sender: 'user',
-              timestamp: new Date(),
-              duration: finalDuration
-            }
-          ]);
-        }
-      } else {
-        // Se o áudio for pequeno o suficiente, apenas envie normalmente
-        const finalDuration = audioDuration; // Captura a duração final do áudio
-        console.log(`Duração final do áudio: ${finalDuration} segundos`);
-        
-        const userMessage: Message = {
-          id: Date.now(),
-          content: "🎤 Áudio enviado",
-          type: 'audio',
-          sender: 'user',
-          timestamp: new Date(),
-          duration: finalDuration
-        };
-        
-        setMessages(prev => [...prev, userMessage]);
-      }
-      
-      // Converter o blob para base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      
-      reader.onloadend = async () => {
-        try {
-          // Obter o base64 removendo o prefixo
-          let base64Audio = reader.result?.toString().split(',')[1] || '';
-          
-          // Verificar tamanho do base64
-          const base64Size = base64Audio.length * 0.75; // 1 caractere base64 = 0.75 bytes
-          console.log(`Tamanho do base64: ${(base64Size / 1024).toFixed(2)} KB`);
-          
-          // Se ainda estiver muito grande mesmo após a compressão, truncamos
-          // Este é um "último recurso" para evitar erros de payload muito grande
-          if (base64Size > 500 * 1024) { // Se maior que 500KB
-            // Truncar para ~500KB (em caracteres base64)
-            const maxChars = 500 * 1024 / 0.75;
-            base64Audio = base64Audio.substring(0, maxChars);
-            console.warn("Áudio truncado para aproximadamente 500KB");
-          }
-          
-          // Enviar áudio para o webhook
-          setIsTyping(true);
-          const webhookResponses = await sendMessageToWebhook(agent.name, base64Audio, "audio");
-          
-          // Processar resposta do webhook
-          if (webhookResponses && webhookResponses.length > 0) {
-            await addAgentMessagesWithDelay(webhookResponses);
-          } else {
-            setIsTyping(false);
-          }
-        } catch (err) {
-          console.error("Erro ao processar ou enviar áudio:", err);
-          setIsTyping(false);
-          // Adicionar mensagem de erro
-          setMessages(prev => [
-            ...prev,
-            {
-              id: Date.now(),
-              content: "Não foi possível enviar o áudio. Por favor, tente um áudio mais curto.",
-              type: 'text',
-              sender: 'agent',
-              timestamp: new Date()
-            }
-          ]);
-        }
-        
-        // Limpar os chunks de áudio
-        setAudioChunks([]);
-      };
-    } catch (error) {
-      console.error('Erro ao preparar áudio:', error);
-      setIsTyping(false);
-      // Adicionar mensagem de erro para o usuário
-      setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now(),
-          content: "Houve um erro ao processar o áudio. Por favor, tente novamente.",
-          type: 'text',
-          sender: 'agent',
-          timestamp: new Date()
-        }
-      ]);
-    }
-  };
-
-  // Initial welcome message from the agent
-  useEffect(() => {
-    if (isOpen) {
-      const welcomeMessage = `Olá! Eu sou o ${agent.name}. Como posso ajudar você hoje?`;
-      
-      setTimeout(() => {
-        setMessages([
-          {
-            id: 1,
-            content: welcomeMessage,
-            type: 'text',
-            sender: 'agent',
-            timestamp: new Date()
-          }
-        ]);
-        
-        // Envia a mensagem de boas-vindas do agente para o webhook
-        sendMessageToWebhook(agent.name, welcomeMessage, "text");
-      }, 500);
-    } else {
-      setMessages([]);
-      setInputValue('');
-      if (isRecording) {
-        stopRecording();
-      }
-    }
-  }, [isOpen, agent]);
-
   // Função para reproduzir áudio
-  const playAudio = (messageId: number, audioContent: string) => {
-    // Se já tiver um áudio tocando, pare-o
+  const playAudio = useCallback((messageId: number, audioContent: string) => {
+    // Se já estiver tocando um áudio, pare-o
     if (currentAudio.audio && currentAudio.isPlaying) {
       currentAudio.audio.pause();
       currentAudio.audio.currentTime = 0;
@@ -455,18 +450,14 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     }
     
     try {
-      // Criar um elemento de áudio para reproduzir o áudio
+      // Criar elemento de áudio
       const audioElement = new Audio();
       
-      // Configurar a fonte do áudio - neste caso, estamos usando o próprio texto
-      // como identificador do áudio (em uma implementação real, seria uma URL)
-      
-      // Para áudios pequenos (textos curtos), simulamos um áudio sintético
+      // Usar áudio de exemplo
       const audioSrc = `data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAASAAAeMwAUFBQUFCkpKSkpKT4+Pj4+PklJSUlJSVpaWlpaWm9vb29vb3t7e3t7e4aGhoaGhpGRkZGRkaampqamprKysrKysr29vb29vcfHx8fHx9LS0tLS0uTk5OTk5PX19fX19f////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAHjOZTf9/AAAAAAAAAAAAAAAAAAAAAP/7UMQAAAesTx2R0TAI8XHk0mYbBAhBAEAQBA0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NAAIAAJ/4iIiIiIiITEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+1LECgAK6Q8+2emAAkG9J5ZxkwBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==`;
-      
       audioElement.src = audioSrc;
       
-      // Adicionar eventos para controlar o estado de reprodução
+      // Eventos de controle
       audioElement.onplay = () => {
         setCurrentAudio({
           audio: audioElement,
@@ -483,8 +474,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         });
       };
       
-      audioElement.onerror = (e) => {
-        console.error("Erro ao reproduzir áudio:", e);
+      audioElement.onerror = () => {
+        console.error("Erro ao reproduzir áudio");
         setCurrentAudio({
           audio: null,
           messageId: null,
@@ -492,34 +483,34 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         });
       };
       
-      // Iniciar a reprodução
+      // Iniciar reprodução
       audioElement.play().catch(err => {
-        console.error("Erro ao iniciar reprodução de áudio:", err);
+        console.error("Erro ao iniciar reprodução:", err);
       });
     } catch (error) {
       console.error("Erro ao criar elemento de áudio:", error);
     }
-  };
+  }, [currentAudio]);
   
-  // Função para adicionar mensagens do agente com atraso sequencial
+  // Função para adicionar mensagens do agente com delay
   const addAgentMessagesWithDelay = async (responses: WebhookResponse[]) => {
     setIsTyping(true);
     
-    // Processar cada resposta do webhook sequencialmente
+    // Processar cada resposta sequencialmente
     for (let responseIdx = 0; responseIdx < responses.length; responseIdx++) {
       const response = responses[responseIdx];
       
-      // Processar cada mensagem dentro da resposta
+      // Processar mensagens em array
       if (response.messages && Array.isArray(response.messages)) {
         for (let msgIdx = 0; msgIdx < response.messages.length; msgIdx++) {
-          // Espera 2 segundos antes de mostrar a próxima mensagem (exceto para a primeira)
+          // Adicionar delay entre mensagens
           if (msgIdx > 0) {
-            // Mostra o indicador de digitação por um tempo antes da próxima mensagem
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
           
           const messageItem = response.messages[msgIdx];
           
+          // Criar nova mensagem
           const newMessage: Message = {
             id: Date.now() + responseIdx + msgIdx,
             content: messageItem.message,
@@ -528,13 +519,12 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
             timestamp: new Date()
           };
           
-          // Adiciona a mensagem, atualizando o estado
+          // Adicionar mensagem
           setMessages(prev => [...prev, newMessage]);
           
-          // Após adicionar cada mensagem, verifica se há mais mensagens a serem mostradas
-          // Se houver, mantém o indicador de digitação ativo para a próxima mensagem
+          // Manter indicador de digitação entre mensagens
           if (msgIdx < response.messages.length - 1) {
-            // Move a visualização para o final da lista
+            // Scroll para o fim
             setTimeout(() => {
               const chatContainer = document.querySelector('.chat-messages');
               if (chatContainer) {
@@ -542,12 +532,11 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
               }
             }, 100);
             
-            // Mantém o indicador de digitação visível por um breve período para a próxima mensagem
             await new Promise(resolve => setTimeout(resolve, 800));
           }
         }
       } else if (response.message) {
-        // Se não tiver array de mensagens, mas tiver uma única mensagem
+        // Mensagem única
         const newMessage: Message = {
           id: Date.now() + responseIdx,
           content: response.message,
@@ -560,10 +549,10 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       }
     }
     
-    // Remove o indicador de digitação quando todas as mensagens forem mostradas
+    // Finalizar digitação
     setIsTyping(false);
     
-    // Scroll para o final da lista de mensagens
+    // Scroll final
     setTimeout(() => {
       const chatContainer = document.querySelector('.chat-messages');
       if (chatContainer) {
@@ -571,11 +560,12 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       }
     }, 100);
   };
-
+  
+  // Função para enviar mensagem de texto
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
     
-    // Add user message to UI
+    // Adicionar mensagem do usuário
     const userMessage: Message = {
       id: Date.now(),
       content: inputValue,
@@ -585,336 +575,243 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     };
     
     setMessages(prev => [...prev, userMessage]);
-    
-    const messageText = inputValue;
     setInputValue('');
-    
-    // Simulate agent typing
     setIsTyping(true);
     
-    try {
-      // Enviar mensagem do usuário para o webhook e obter resposta
-      const webhookResponses = await sendMessageToWebhook(agent.name, messageText);
-      
-      console.log("Resposta do webhook:", webhookResponses);
-      
-      // Verifica se tem a palavra piada para usar resposta especial
-      if (messageText.toLowerCase().includes('piada')) {
-        const piadaResponse = [
-          {
-            messages: [
-              {
-                message: "Claro! Aqui vai uma piada:",
-                typeMessage: "text" as const
-              },
-              {
-                message: "Por que o computador foi ao médico?",
-                typeMessage: "text" as const
-              },
-              {
-                message: "Porque ele estava com um vírus!",
-                typeMessage: "text" as const
-              }
-            ]
-          }
-        ] as WebhookResponse[];
-        await addAgentMessagesWithDelay(piadaResponse);
-        return;
+    // Scroll para o fim
+    setTimeout(() => {
+      const chatContainer = document.querySelector('.chat-messages');
+      if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
       }
+    }, 100);
+    
+    try {
+      // Enviar para webhook
+      const webhookResponses = await sendMessageToWebhook(agent.name, inputValue);
       
-      // Detecta webhook respostas "Workflow was started" e responde com mensagem apropriada
-      if (webhookResponses && 
-          webhookResponses.length === 1 && 
-          webhookResponses[0].message === "Workflow was started") {
-        
-        // Resposta especial para "Workflow was started"
-        setTimeout(() => {
-          const workflowMessage: Message = {
-            id: Date.now() + 1,
-            content: "Sua solicitação está sendo processada. Logo retornaremos com uma resposta!",
+      // Processar resposta
+      if (webhookResponses && webhookResponses.length > 0) {
+        await addAgentMessagesWithDelay(webhookResponses);
+      } else {
+        setIsTyping(false);
+      }
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      setIsTyping(false);
+      
+      // Mensagem de erro
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
+        type: 'text',
+        sender: 'agent',
+        timestamp: new Date()
+      }]);
+    }
+  };
+  
+  // Mensagem inicial de boas-vindas
+  useEffect(() => {
+    if (isOpen) {
+      const welcomeMessage = `Olá! Eu sou o ${agent.name}. Como posso ajudar você hoje?`;
+      
+      setTimeout(() => {
+        setMessages([
+          {
+            id: 1,
+            content: welcomeMessage,
             type: 'text',
             sender: 'agent',
             timestamp: new Date()
-          };
-          
-          setMessages(prev => [...prev, workflowMessage]);
-          setIsTyping(false);
-        }, 1000);
+          }
+        ]);
         
-        return;
+        // Envia a mensagem de boas-vindas para o webhook
+        sendMessageToWebhook(agent.name, welcomeMessage, "text");
+      }, 500);
+    } else {
+      setMessages([]);
+      setInputValue('');
+      if (isRecording) {
+        stopRecording();
       }
-      
-      // Processar resposta normal do webhook
-      if (webhookResponses && webhookResponses.length > 0 && 
-          (webhookResponses[0].messages || webhookResponses[0].message)) {
-        // Processar as respostas do webhook com delay
-        await addAgentMessagesWithDelay(webhookResponses);
-      } else {
-        console.warn("Resposta do webhook vazia ou inválida, usando resposta gerada localmente");
-        // Fallback apenas se não houver resposta do webhook
-        throw new Error("Resposta do webhook vazia ou em formato inválido");
-      }
-    } catch (error) {
-      console.error("Erro ao processar resposta do webhook:", error);
-      // Fallback para resposta gerada localmente apenas em caso de erro
-      setTimeout(async () => {
-        const responseText = getAgentResponse(agent, messageText);
-        
-        const agentResponse: Message = {
-          id: Date.now() + 1,
-          content: responseText,
-          type: 'text',
-          sender: 'agent',
-          timestamp: new Date()
-        };
-        
-        setMessages(prev => [...prev, agentResponse]);
-        setIsTyping(false);
-      }, 1500);
     }
+  }, [isOpen, agent, isRecording, stopRecording]);
+  
+  // Formatar duração em MM:SS
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
-
-  // Handle Enter key press
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSendMessage();
-    }
-  };
-
-  // Handle clicks outside the modal to close it
-  const handleOutsideClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLDivElement).classList.contains('modal-overlay')) {
-      onClose();
-    }
-  };
-
+  
+  // Se o modal não estiver aberto, não renderiza nada
   if (!isOpen) return null;
-
+  
   return (
-    <div 
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 modal-overlay"
-      onClick={handleOutsideClick}
-    >
-      <div 
-        className="bg-[var(--primary-900)] rounded-xl w-full max-w-md mx-4 shadow-xl overflow-hidden"
-        style={{ animation: 'zoom-in-bounce 300ms' }}
-      >
-        {/* Chat header */}
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 overflow-y-auto">
+      <div className="bg-[var(--primary-900)] w-full max-w-2xl h-[80vh] rounded-lg shadow-xl flex flex-col overflow-hidden">
+        {/* Cabeçalho */}
         <div className="bg-[var(--primary-800)] p-4 flex items-center justify-between">
           <div className="flex items-center">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--secondary-600)] to-[var(--secondary-500)] flex items-center justify-center mr-3">
-              <i className={`${agent.icon} text-xl text-white`}></i>
-            </div>
-            <div>
-              <h3 className="font-tech text-white font-semibold text-lg">{agent.name}</h3>
-              <p className="text-white/70 text-xs">Online agora</p>
+            <div className="text-white font-bold text-lg flex items-center">
+              <span className="mr-2">{agent.name}</span>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="text-white/70 hover:text-white transition-colors"
+            className="text-white hover:text-[var(--secondary-300)] transition-colors"
           >
-            <i className="ri-close-line text-xl"></i>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
         
-        {/* Chat messages */}
-        <div className="p-4 h-80 overflow-y-auto bg-[var(--primary-900)] flex flex-col space-y-3 chat-messages">
-          {messages.map(message => (
+        {/* Área de mensagens */}
+        <div className="flex-1 p-4 overflow-y-auto chat-messages bg-gradient-to-br from-[var(--primary-950)] to-[var(--primary-900)]">
+          {messages.map((message) => (
             <div 
               key={message.id} 
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`mb-4 ${message.sender === 'user' ? 'flex justify-end' : 'flex justify-start'}`}
             >
               <div 
-                className={`${message.type === 'audio' ? 'min-w-[100px]' : 'max-w-[80%]'} p-3 rounded-lg ${
+                className={`max-w-3/4 rounded-lg px-4 py-2 ${
                   message.sender === 'user' 
-                    ? 'bg-[var(--secondary-600)] text-white rounded-tr-none' 
-                    : 'bg-[var(--primary-800)] text-white rounded-tl-none'
+                    ? 'bg-[var(--secondary-600)] text-white' 
+                    : 'bg-[var(--primary-800)] text-white'
                 }`}
               >
-                {message.type === 'audio' ? (
-                  <div className="audio-message">
-                    <div className="flex items-center">
-                      <button 
-                        className={`w-8 h-8 rounded-full ${currentAudio.messageId === message.id && currentAudio.isPlaying 
-                          ? 'bg-white/40' 
-                          : 'bg-white/20'} 
-                          flex items-center justify-center mr-2 hover:bg-white/30 transition-colors`}
-                        title={currentAudio.messageId === message.id && currentAudio.isPlaying ? "Pausar áudio" : "Reproduzir áudio"}
-                        onClick={() => playAudio(message.id, message.content)}
-                      >
-                        <i className={`${currentAudio.messageId === message.id && currentAudio.isPlaying 
-                          ? 'ri-pause-fill' 
-                          : 'ri-play-fill'} text-white`}></i>
-                      </button>
-                      <div className="flex-1">
-                        <div className="w-full h-1 bg-white/30 rounded-full">
-                          <div 
-                            className={`h-full ${currentAudio.messageId === message.id && currentAudio.isPlaying 
-                              ? 'animate-progress-bar bg-white' 
-                              : 'w-0 bg-white'} rounded-full`}
-                            style={{
-                              animationDuration: message.duration ? `${message.duration}s` : '0s'
-                            }}
-                          ></div>
+                {message.type === 'text' ? (
+                  <p>{message.content}</p>
+                ) : message.type === 'audio' ? (
+                  <div className="flex items-center">
+                    <button 
+                      onClick={() => playAudio(message.id, message.content)}
+                      className="mr-2 p-1 rounded-full bg-[var(--primary-700)] hover:bg-[var(--primary-600)] transition-colors"
+                    >
+                      {currentAudio.messageId === message.id && currentAudio.isPlaying ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m-9-9h14a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                    </button>
+                    <div className="flex-1">
+                      <p className="text-sm">{message.content}</p>
+                      
+                      {message.duration && (
+                        <div className="mt-1 text-xs text-gray-300">
+                          {/* Barra de progresso */}
+                          {currentAudio.messageId === message.id && currentAudio.isPlaying ? (
+                            <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1 overflow-hidden">
+                              <div 
+                                className="bg-[var(--secondary-400)] h-1.5 rounded-full animate-progress-bar"
+                                style={{ animationDuration: `${message.duration}s` }}
+                              ></div>
+                            </div>
+                          ) : (
+                            <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1">
+                              <div 
+                                className="bg-gray-500 h-1.5 rounded-full"
+                                style={{ width: '0%' }}
+                              ></div>
+                            </div>
+                          )}
+                          <span>{formatDuration(message.duration)}</span>
                         </div>
-                        <span className="text-xs text-white/70 mt-1 block">
-                          {message.duration 
-                            ? `${Math.floor(message.duration / 60)}:${(message.duration % 60).toString().padStart(2, '0')}` 
-                            : '0:00'}
-                        </span>
-                      </div>
+                      )}
                     </div>
-                    <span className="text-xs opacity-70 block text-right mt-1">
-                      {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </span>
                   </div>
                 ) : (
-                  <>
-                    <p>{message.content}</p>
-                    <span className="text-xs opacity-70 block text-right mt-1">
-                      {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </span>
-                  </>
+                  <p>Tipo de mensagem não suportado: {message.type}</p>
                 )}
+                <span className="text-xs text-gray-400 block mt-1">
+                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
             </div>
           ))}
-          
           {isTyping && (
-            <div className="flex justify-start">
-              <div className="bg-[var(--primary-800)] p-3 rounded-lg rounded-tl-none">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"></div>
-                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+            <div className="flex justify-start mb-4">
+              <div className="bg-[var(--primary-800)] text-white rounded-lg px-4 py-2">
+                <div className="flex space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
                 </div>
               </div>
             </div>
           )}
         </div>
         
-        {/* Chat input */}
-        <div className="p-4 bg-[var(--primary-900)] flex items-center">
-          <input 
-            type="text" 
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Digite sua mensagem..." 
-            className="flex-1 bg-[var(--primary-800)] border-none rounded-full px-5 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-0"
-          />
-          
-          {/* Contador de tempo de gravação */}
-          {isRecording && (
-            <div className="mr-2 px-3 py-1 bg-red-500/20 rounded-md text-white flex items-center">
-              <span className="text-red-400 text-sm font-mono">
-                {Math.floor(audioDuration / 60)}:{(audioDuration % 60).toString().padStart(2, '0')}
-              </span>
-            </div>
-          )}
-          
+        {/* Área de entrada e controles */}
+        <div className="p-4 bg-[var(--primary-850)] border-t border-[var(--primary-700)]">
           {isRecording ? (
-            <>
-              {/* Botão de descarte de áudio (lixeira) quando estiver gravando */}
-              <button 
-                onClick={discardRecording}
-                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-gray-500 hover:bg-gray-600 text-white transition-colors"
-                title="Descartar gravação"
-              >
-                <i className="ri-delete-bin-line text-xl"></i>
-              </button>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center bg-[var(--primary-800)] rounded-full px-4 py-2 flex-1 mr-2">
+                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse mr-2"></div>
+                <span className="text-white">Gravando: {formatDuration(audioDuration)}</span>
+              </div>
               
-              {/* Botão de envio quando estiver gravando (para o áudio e envia) */}
-              <button 
-                onClick={stopRecording}
-                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-[var(--secondary-600)] text-white"
-                title="Parar e enviar áudio"
-              >
-                <i className="ri-send-plane-fill text-xl"></i>
-              </button>
-            </>
+              <div className="flex space-x-2">
+                <button 
+                  onClick={stopRecording}
+                  className="p-2 bg-[var(--secondary-500)] hover:bg-[var(--secondary-400)] rounded-full transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
+                
+                <button 
+                  onClick={discardRecording}
+                  className="p-2 bg-red-600 hover:bg-red-500 rounded-full transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           ) : (
-            <>
-              {/* Botão de gravação de áudio quando não estiver gravando */}
-              <button 
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Digite sua mensagem..."
+                className="flex-1 bg-[var(--primary-800)] border border-[var(--primary-700)] text-white rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--secondary-500)]"
+              />
+              
+              <button
                 onClick={startRecording}
-                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-[var(--primary-800)] hover:bg-[var(--primary-700)] text-white transition-colors"
-                title="Gravar áudio"
+                className="bg-[var(--primary-700)] hover:bg-[var(--primary-600)] text-white px-3 py-2 transition-colors"
               >
-                <i className="ri-mic-fill text-xl"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
               </button>
               
-              {/* Botão de envio de mensagem de texto quando não estiver gravando */}
-              <button 
+              <button
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim()}
-                className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center ${
-                  inputValue.trim() 
-                    ? 'bg-[var(--secondary-600)]' 
-                    : 'bg-[var(--primary-800)]'
-                } text-white`}
-                title="Enviar mensagem"
+                className={`bg-[var(--secondary-500)] hover:bg-[var(--secondary-400)] text-white px-4 py-2 rounded-r-lg transition-colors ${!inputValue.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <i className="ri-send-plane-fill text-xl"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
     </div>
   );
-}
-
-// Helper function to generate responses based on agent type and user input
-function getAgentResponse(agent: Agent, userInput: string): string {
-  const input = userInput.toLowerCase();
-  const responses = {
-    default: "Desculpe, não entendi completamente. Poderia fornecer mais detalhes?",
-    greeting: "Olá! Como posso ajudar você hoje?",
-    thanks: "Por nada! Estou aqui para ajudar. Há mais algo que você gostaria de saber?",
-    pricing: "Nossos planos começam em R$99/mês com 7 dias de teste gratuito. Você gostaria de mais informações sobre nossos planos?",
-    features: `Como ${agent.name}, posso ${agent.description.toLowerCase()} Gostaria de ver uma demonstração?`,
-  };
-
-  if (input.includes('olá') || input.includes('oi') || input.includes('bom dia') || input.includes('boa tarde') || input.includes('boa noite')) {
-    return responses.greeting;
-  }
-  
-  if (input.includes('obrigado') || input.includes('obrigada') || input.includes('valeu')) {
-    return responses.thanks;
-  }
-  
-  if (input.includes('preço') || input.includes('quanto custa') || input.includes('valor') || input.includes('plano')) {
-    return responses.pricing;
-  }
-  
-  if (input.includes('o que') || input.includes('como funciona') || input.includes('recursos') || input.includes('funcionalidades')) {
-    return responses.features;
-  }
-  
-  // Agent-specific responses based on their category
-  switch (agent.id) {
-    case 1: // Agente Comercial (SDR)
-      if (input.includes('lead') || input.includes('prospect') || input.includes('venda')) {
-        return "Posso ajudar a automatizar a prospecção de leads qualificados e agendar reuniões de vendas com os tomadores de decisão certos. Gostaria de ver como funciona?";
-      }
-      break;
-    case 2: // Agente Clínicas
-      if (input.includes('pacient') || input.includes('consult') || input.includes('agenda')) {
-        return "Posso gerenciar agendamentos, enviar lembretes de consultas e fazer acompanhamento pós-atendimento com seus pacientes, reduzindo faltas em até 40%. Gostaria de uma demonstração?";
-      }
-      break;
-    case 7: // Agente CS
-      if (input.includes('suporte') || input.includes('cliente') || input.includes('atendimento')) {
-        return "Posso automatizar respostas para perguntas frequentes, classificar tickets por prioridade e garantir que nenhum cliente fique sem resposta. Isso pode reduzir o tempo de resposta em até 80%.";
-      }
-      break;
-    default:
-      if (input.length > 15) {
-        return `Entendi sua necessidade relacionada a "${userInput.substring(0, 20)}...". Como ${agent.name}, posso ajudar com isso usando nossa tecnologia de IA avançada. Podemos agendar uma demonstração para você ver como funciona na prática?`;
-      }
-  }
-  
-  return responses.default;
 }
