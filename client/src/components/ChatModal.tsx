@@ -40,27 +40,52 @@ function convertToUrlFriendly(name: string): string {
 // Função para enviar mensagem para o webhook através do proxy no servidor
 async function sendMessageToWebhook(
   agentName: string, 
-  message: string, 
+  message: string | Blob, 
   typeMessage: "text" | "audio" = "text"
 ): Promise<WebhookResponse[] | null> {
   try {
     const urlFriendlyName = convertToUrlFriendly(agentName);
     
-    const payload = {
-      agent: urlFriendlyName,
-      message: message,
-      typeMessage: typeMessage
-    };
+    let response;
     
-    console.log("Enviando mensagem para webhook:", payload);
-    
-    const response = await fetch('/api/webhook-proxy', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload)
-    });
+    // Se for um áudio (Blob), enviamos como FormData
+    if (typeMessage === "audio" && message instanceof Blob) {
+      const formData = new FormData();
+      formData.append('agent', urlFriendlyName);
+      formData.append('typeMessage', typeMessage);
+      
+      // Adicionar o arquivo .webm com nome específico para facilitar o processamento no servidor
+      formData.append('audioFile', message, `audio_${Date.now()}.webm`);
+      
+      console.log("Enviando áudio via FormData para webhook:", {
+        agent: urlFriendlyName,
+        typeMessage,
+        audioSize: `${(message.size / 1024).toFixed(2)}KB`
+      });
+      
+      // Enviar sem cabeçalho Content-Type para permitir que o navegador defina o boundary correto
+      response = await fetch('/api/webhook-proxy', {
+        method: 'POST',
+        body: formData
+      });
+    } else {
+      // Para mensagens de texto, continua enviando como JSON
+      const payload = {
+        agent: urlFriendlyName,
+        message: message as string,
+        typeMessage: typeMessage
+      };
+      
+      console.log("Enviando mensagem para webhook:", payload);
+      
+      response = await fetch('/api/webhook-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+    }
     
     if (!response.ok) {
       console.error('Erro ao enviar mensagem para o webhook');
@@ -232,139 +257,84 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     if (audioChunks.length === 0) return;
     
     try {
-      // Criar um blob com todos os chunks usando o formato compactado
+      // Criar um blob com todos os chunks usando o formato compactado WebM com codec Opus
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
       
-      // Verificar o tamanho do áudio antes da compressão
+      // Verificar o tamanho do áudio
       console.log(`Tamanho do áudio original: ${(audioBlob.size / 1024).toFixed(2)} KB`);
       
-      // Se o áudio for maior que 100KB, comprima-o
-      if (audioBlob.size > 100 * 1024) {
-        console.log("Áudio muito grande, comprimindo...");
-        // Exibir uma mensagem pro usuário de que o áudio está sendo processado
-        const finalDuration = audioDuration; // Captura a duração final
-        console.log(`Duração final do áudio sendo processado: ${finalDuration} segundos`);
+      // Capturar a duração final do áudio
+      const finalDuration = audioDuration;
+      console.log(`Duração final do áudio: ${finalDuration} segundos`);
+      
+      // Adicionar mensagem do usuário ao chat
+      const userMessage: Message = {
+        id: Date.now(),
+        content: "🎤 Áudio enviado",
+        type: 'audio',
+        sender: 'user',
+        timestamp: new Date(),
+        duration: finalDuration
+      };
+      
+      // Atualize a interface para mostrar o áudio enviado
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Mostrar que o agente está "digitando"
+      setIsTyping(true);
+      
+      try {
+        // Criar um FormData e enviar o áudio diretamente
+        const formData = new FormData();
+        formData.append('agent', convertToUrlFriendly(agent.name));
+        formData.append('typeMessage', 'audio');
+        formData.append('audioFile', audioBlob, `audio_${Date.now()}.webm`);
         
-        const userMessage: Message = {
-          id: Date.now(),
-          content: "🎤 Processando áudio...",
-          type: 'audio',
-          sender: 'user',
-          timestamp: new Date(),
-          duration: finalDuration
-        };
+        console.log("Enviando áudio via FormData para rota dedicada");
         
-        setMessages(prev => [...prev, userMessage]);
+        // Enviar para a rota específica de áudio
+        const response = await fetch('/api/webhook-proxy/audio', {
+          method: 'POST',
+          body: formData
+        });
         
-        // Em um cenário real, aqui usaríamos uma biblioteca de compressão de áudio
-        // Para simplicidade neste exemplo, vamos apenas usar o áudio original
-        // mas cortar a duração se for muito grande
-        
-        // Enviar uma mensagem indicando o problema se necessário
-        if (audioBlob.size > 500 * 1024) {
-          // Se o áudio for realmente grande, avisamos o usuário
-          const finalDuration = audioDuration; // Captura a duração final
-          console.log(`Duração final do áudio grande: ${finalDuration} segundos`);
-          
-          setMessages(prev => [
-            ...prev.filter(m => m.content !== "🎤 Processando áudio..."), 
-            {
-              id: Date.now(),
-              content: "🎤 Áudio enviado (versão curta - o áudio original era muito grande)",
-              type: 'audio',
-              sender: 'user',
-              timestamp: new Date(),
-              duration: finalDuration
-            }
-          ]);
-        } else {
-          // Atualiza a mensagem para indicar que o áudio foi enviado
-          const finalDuration = audioDuration; // Captura a duração final
-          console.log(`Duração final do áudio normal: ${finalDuration} segundos`);
-          
-          setMessages(prev => [
-            ...prev.filter(m => m.content !== "🎤 Processando áudio..."), 
-            {
-              id: Date.now(),
-              content: "🎤 Áudio enviado",
-              type: 'audio',
-              sender: 'user',
-              timestamp: new Date(),
-              duration: finalDuration
-            }
-          ]);
+        if (!response.ok) {
+          throw new Error(`Erro ao enviar áudio: ${response.status} ${response.statusText}`);
         }
-      } else {
-        // Se o áudio for pequeno o suficiente, apenas envie normalmente
-        const finalDuration = audioDuration; // Captura a duração final do áudio
-        console.log(`Duração final do áudio: ${finalDuration} segundos`);
         
-        const userMessage: Message = {
-          id: Date.now(),
-          content: "🎤 Áudio enviado",
-          type: 'audio',
-          sender: 'user',
-          timestamp: new Date(),
-          duration: finalDuration
-        };
+        const responseData = await response.json();
+        console.log("Resposta do servidor para áudio:", responseData);
         
-        setMessages(prev => [...prev, userMessage]);
+        // Processar resposta do webhook
+        if (responseData && Array.isArray(responseData) && responseData.length > 0) {
+          await addAgentMessagesWithDelay(responseData);
+        } else {
+          setIsTyping(false);
+        }
+      } catch (err) {
+        console.error("Erro ao enviar áudio:", err);
+        setIsTyping(false);
+        
+        // Adicionar mensagem de erro
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now(),
+            content: "Não foi possível processar o áudio. Por favor, tente novamente.",
+            type: 'text',
+            sender: 'agent',
+            timestamp: new Date()
+          }
+        ]);
       }
       
-      // Converter o blob para base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
+      // Limpar os chunks de áudio
+      setAudioChunks([]);
       
-      reader.onloadend = async () => {
-        try {
-          // Obter o base64 removendo o prefixo
-          let base64Audio = reader.result?.toString().split(',')[1] || '';
-          
-          // Verificar tamanho do base64
-          const base64Size = base64Audio.length * 0.75; // 1 caractere base64 = 0.75 bytes
-          console.log(`Tamanho do base64: ${(base64Size / 1024).toFixed(2)} KB`);
-          
-          // Se ainda estiver muito grande mesmo após a compressão, truncamos
-          // Este é um "último recurso" para evitar erros de payload muito grande
-          if (base64Size > 500 * 1024) { // Se maior que 500KB
-            // Truncar para ~500KB (em caracteres base64)
-            const maxChars = 500 * 1024 / 0.75;
-            base64Audio = base64Audio.substring(0, maxChars);
-            console.warn("Áudio truncado para aproximadamente 500KB");
-          }
-          
-          // Enviar áudio para o webhook
-          setIsTyping(true);
-          const webhookResponses = await sendMessageToWebhook(agent.name, base64Audio, "audio");
-          
-          // Processar resposta do webhook
-          if (webhookResponses && webhookResponses.length > 0) {
-            await addAgentMessagesWithDelay(webhookResponses);
-          } else {
-            setIsTyping(false);
-          }
-        } catch (err) {
-          console.error("Erro ao processar ou enviar áudio:", err);
-          setIsTyping(false);
-          // Adicionar mensagem de erro
-          setMessages(prev => [
-            ...prev,
-            {
-              id: Date.now(),
-              content: "Não foi possível enviar o áudio. Por favor, tente um áudio mais curto.",
-              type: 'text',
-              sender: 'agent',
-              timestamp: new Date()
-            }
-          ]);
-        }
-        
-        // Limpar os chunks de áudio
-        setAudioChunks([]);
-      };
     } catch (error) {
       console.error('Erro ao preparar áudio:', error);
       setIsTyping(false);
+      
       // Adicionar mensagem de erro para o usuário
       setMessages(prev => [
         ...prev,
