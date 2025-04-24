@@ -14,18 +14,14 @@ export default function Footer() {
             Transformando o futuro com soluções de inteligência artificial inovadoras e acessíveis.
           </p>
           
-          <div className="flex space-x-6 mb-12">
-            <a href="#" className="w-12 h-12 rounded-full bg-[var(--primary-800)] flex items-center justify-center hover:bg-[var(--secondary-900)] transition-colors">
-              <i className="ri-twitter-x-line text-xl text-white"></i>
-            </a>
-            <a href="#" className="w-12 h-12 rounded-full bg-[var(--primary-800)] flex items-center justify-center hover:bg-[var(--secondary-900)] transition-colors">
-              <i className="ri-linkedin-fill text-xl text-white"></i>
-            </a>
-            <a href="#" className="w-12 h-12 rounded-full bg-[var(--primary-800)] flex items-center justify-center hover:bg-[var(--secondary-900)] transition-colors">
+          <div className="flex mb-12">
+            <a 
+              href="http://instagram.com/unitmedia1/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="w-12 h-12 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] flex items-center justify-center hover:shadow-lg hover:shadow-[#FF416C]/30 transition-all"
+            >
               <i className="ri-instagram-line text-xl text-white"></i>
-            </a>
-            <a href="#" className="w-12 h-12 rounded-full bg-[var(--primary-800)] flex items-center justify-center hover:bg-[var(--secondary-900)] transition-colors">
-              <i className="ri-github-fill text-xl text-white"></i>
             </a>
           </div>
           

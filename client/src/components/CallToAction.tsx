@@ -19,7 +19,7 @@ export default function CallToAction() {
               href={whatsappLink} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="px-8 py-4 rounded-lg bg-gradient-to-r from-[var(--secondary-500)] to-[var(--accent-500)] font-medium text-white hover:shadow-lg hover:shadow-[var(--accent-500)]/30 transition-all duration-300 w-full sm:w-auto max-w-xs flex items-center justify-center animate-pulse-slow"
+              className="px-8 py-4 rounded-lg bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] font-medium text-white hover:shadow-lg hover:shadow-[#FF416C]/40 transition-all duration-300 w-full sm:w-auto max-w-xs flex items-center justify-center"
             >
               <span>Converse pelo WhatsApp</span>
               <i className="ri-whatsapp-line ml-2 text-lg"></i>

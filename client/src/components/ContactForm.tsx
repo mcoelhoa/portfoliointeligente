@@ -121,7 +121,7 @@ export default function ContactForm() {
               <div>
                 <button 
                   type="submit"
-                  className="w-full test-btn px-6 py-4 rounded-lg font-medium text-white flex items-center justify-center"
+                  className="w-full px-6 py-4 rounded-lg font-medium text-white flex items-center justify-center bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] hover:shadow-lg hover:shadow-[#FF416C]/40 transition-all duration-300"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
