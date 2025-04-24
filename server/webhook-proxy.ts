@@ -2,11 +2,11 @@ import axios from 'axios';
 import { Express, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 
-// URLs do webhook para tentativas alternativas
+// URLs do webhook para tentativas alternativas (a partir das variáveis de ambiente)
 const WEBHOOK_URLS = [
-  'https://n8neditor.unitmedia.cloud/webhook/portfolio',
-  'https://n8neditor.unitmedia.cloud/webhook-test/portfolio',
-  'https://n8n.unitmedia.cloud/webhook/portfolio'
+  process.env.WEBHOOK_URL_PRIMARY || 'https://n8neditor.unitmedia.cloud/webhook/portfolio',
+  process.env.WEBHOOK_URL_SECONDARY || 'https://n8neditor.unitmedia.cloud/webhook-test/portfolio',
+  process.env.WEBHOOK_URL_TERTIARY || 'https://n8n.unitmedia.cloud/webhook/portfolio'
 ];
 
 // Índice da URL atual (para alternar em caso de falha)
