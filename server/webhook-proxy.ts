@@ -1,19 +1,11 @@
 import axios from 'axios';
 import { Express, Request, Response } from 'express';
 import bodyParser from 'body-parser';
-import multer from 'multer';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-
-// Usar apenas a tipagem padrão do multer para o Request
-// Não precisamos redefinir a interface pois @types/multer já faz isso corretamente
 
 // URLs do webhook para tentativas alternativas (a partir das variáveis de ambiente)
-// Agora usando o webhook de teste como padrão conforme solicitado pelo usuário
 const WEBHOOK_URLS = [
-  'https://n8neditor.unitmedia.cloud/webhook-test/portfolio', // Webhook principal explicitamente solicitado
   process.env.WEBHOOK_URL_PRIMARY || 'https://n8neditor.unitmedia.cloud/webhook/portfolio',
+  process.env.WEBHOOK_URL_SECONDARY || 'https://n8neditor.unitmedia.cloud/webhook-test/portfolio',
   process.env.WEBHOOK_URL_TERTIARY || 'https://n8n.unitmedia.cloud/webhook/portfolio'
 ];
 
@@ -32,42 +24,6 @@ const switchToNextWebhookUrl = () => {
 
 // Aumentar limite para mensagens de áudio (padrão é 100kb)
 const jsonParser = bodyParser.json({ limit: '10mb' });
-
-// Configurar o multer para armazenamento temporário de arquivos
-const storage = multer.diskStorage({
-  destination: (req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
-    // Usar pasta temporária do sistema
-    const tempDir = path.join(os.tmpdir(), 'audio-uploads');
-    
-    // Certificar que o diretório existe
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    
-    cb(null, tempDir);
-  },
-  filename: (req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
-    // Nome único para o arquivo
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-// Configurar o multer com limites
-const upload = multer({ 
-  storage,
-  limits: { 
-    fileSize: 10 * 1024 * 1024 // Limite de 10MB para arquivos de áudio
-  },
-  fileFilter: (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    // Aceitar apenas arquivos de áudio
-    if (file.mimetype.startsWith('audio/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Apenas arquivos de áudio são permitidos'));
-    }
-  }
-});
 
 // Logs detalhados para facilitar a depuração
 const enableDetailedLogs = true;
@@ -91,72 +47,6 @@ const MOCK_RESPONSE = [
     ]
   }
 ];
-
-// Função para tentar enviar mensagem para um webhook específico
-async function tryWebhook(webhookUrl: string, data: any, headers: any = {}, timeout = 10000): Promise<any> {
-  console.log(`[WebhookProxy] Tentando enviar para webhook: ${webhookUrl}`);
-  
-  try {
-    const response = await axios.post(webhookUrl, data, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers
-      },
-      timeout: timeout
-    });
-    
-    // Se recebeu uma resposta válida, use-a
-    if (response.data) {
-      if (enableDetailedLogs) {
-        console.log(`[WebhookProxy] Resposta recebida com sucesso de ${webhookUrl}`);
-        console.log('[WebhookProxy] Status:', response.status);
-        console.log('[WebhookProxy] Dados:', JSON.stringify(response.data).substring(0, 200) + '...');
-      } else {
-        console.log(`[WebhookProxy] Resposta recebida do webhook ${webhookUrl}:`, response.data);
-      }
-      
-      return response;
-    }
-    
-    return null;
-  } catch (error) {
-    const webhookError = error as any;
-    console.warn(`[WebhookProxy] Erro ao chamar webhook ${webhookUrl}:`, webhookError.message);
-    
-    if (enableDetailedLogs && webhookError.response) {
-      console.warn('[WebhookProxy] Status do erro:', webhookError.response.status);
-      console.warn('[WebhookProxy] Detalhes do erro:', webhookError.response.statusText);
-      console.warn('[WebhookProxy] Resposta de erro:', webhookError.response.data || 'Sem dados');
-    }
-    
-    return null;
-  }
-}
-
-// Função para tentar múltiplos webhooks até obter sucesso
-async function tryMultipleWebhooks(data: any, headers: any = {}): Promise<any> {
-  try {
-    // Forçar uso do webhook principal conforme solicitado pelo usuário
-    const principalUrl = WEBHOOK_URLS[0]; // Sempre usar o primeiro webhook (webhook-test/portfolio)
-    console.log(`[WebhookProxy] Enviando diretamente para o webhook principal: ${principalUrl}`);
-    
-    // Tentar o webhook principal
-    const response = await tryWebhook(principalUrl, data, headers);
-    
-    // Se funcionou, retorna
-    if (response) return response;
-    
-    console.log('[WebhookProxy] Tentativa ao webhook principal falhou');
-    
-    // Se o webhook principal falhar, não tentar alternativas conforme solicitado
-    // (mudança de comportamento anterior)
-    console.warn('[WebhookProxy] Webhook principal falhou, retornando erro');
-    return null;
-  } catch (error) {
-    console.error('[WebhookProxy] Erro ao tentar enviar para o webhook:', error);
-    return null;
-  }
-}
 
 /**
  * Registra uma rota de proxy para o webhook
@@ -210,107 +100,8 @@ export function setupWebhookProxy(app: Express) {
       results: results
     });
   });
-  
-  // Rota específica para upload de arquivos de áudio
-  app.post('/api/webhook-proxy/audio', upload.single('audioFile'), async (req: Request, res: Response) => {
-    try {
-      // Verifica se o arquivo foi enviado
-      if (!req.file) {
-        return res.status(400).json({ error: 'Nenhum arquivo de áudio enviado' });
-      }
-      
-      // Obtem os campos do formulário
-      const agent = req.body.agent;
-      const typeMessage = req.body.typeMessage || 'audio';
-      
-      if (!agent) {
-        return res.status(400).json({ error: 'Campo "agent" é obrigatório' });
-      }
-      
-      console.log(`[WebhookProxy] Recebido arquivo de áudio: ${req.file.originalname} (${req.file.size} bytes)`);
-      console.log(`[WebhookProxy] Agente: ${agent}, Tipo: ${typeMessage}`);
-      
-      // Para enviar o arquivo, precisamos ler o conteúdo e converter para base64
-      const audioContent = fs.readFileSync(req.file.path);
-      const audioBase64 = audioContent.toString('base64');
-      
-      console.log(`[WebhookProxy] Áudio convertido para base64, tamanho: ${audioBase64.length} caracteres`);
-      console.log(`[WebhookProxy] Primeiros 50 caracteres do base64: ${audioBase64.substring(0, 50)}...`);
-      
-      // Dados para enviar ao webhook
-      const data = {
-        agent,
-        message: audioBase64,
-        typeMessage
-      };
-      
-      console.log(`[WebhookProxy] Enviando áudio para webhook com tipo: ${typeMessage}`);
-      
-      // Forçar envio diretamente para o webhook principal
-      let responseReceived = false;
-      let successResponse = null;
-      
-      // Usar apenas o webhook principal conforme solicitado pelo usuário
-      const webhookUrl = WEBHOOK_URLS[0]; // webhook-test/portfolio
-      
-      try {
-        console.log(`[WebhookProxy] Enviando áudio para webhook principal: ${webhookUrl}`);
-        
-        const response = await axios.post(webhookUrl, data, {
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          timeout: 15000 // 15 segundos de timeout para áudio (maior que o normal)
-        });
-        
-        if (response.data) {
-          console.log(`[WebhookProxy] Resposta recebida de ${webhookUrl}: ${JSON.stringify(response.data).substring(0, 100)}...`);
-          responseReceived = true;
-          successResponse = response;
-        }
-      } catch (error) {
-        console.warn(`[WebhookProxy] Erro ao enviar áudio para ${webhookUrl}:`, (error as any).message);
-      }
-      
-      // Limpar o arquivo temporário após enviá-lo
-      try {
-        fs.unlinkSync(req.file.path);
-        console.log(`[WebhookProxy] Arquivo temporário removido: ${req.file.path}`);
-      } catch (err) {
-        console.warn(`[WebhookProxy] Erro ao remover arquivo temporário: ${err}`);
-      }
-      
-      // Se conseguimos uma resposta de qualquer URL, retorne-a
-      if (responseReceived && successResponse) {
-        return res.status(successResponse.status).json(successResponse.data);
-      }
-      
-      // Se chegamos aqui, nenhuma das URLs funcionou, use resposta padrão
-      console.log('[WebhookProxy] Todas as URLs do webhook falharam, usando resposta padrão para áudio');
-      return res.status(200).json([
-        {
-          messages: [
-            {
-              message: "Recebi seu áudio e estou processando a mensagem.",
-              typeMessage: "text"
-            },
-            {
-              message: "Como posso te ajudar?",
-              typeMessage: "text"
-            }
-          ]
-        }
-      ]);
-    } catch (error) {
-      console.error('[WebhookProxy] Erro ao processar upload de áudio:', error);
-      return res.status(500).json({
-        error: 'Falha ao processar o áudio',
-        details: (error as Error).message
-      });
-    }
-  });
 
-  // Rota de proxy para o webhook com parser personalizado para lidar com mensagens json
+  // Rota de proxy para o webhook com parser personalizado para lidar com arquivos grandes
   app.post('/api/webhook-proxy', jsonParser, async (req: Request, res: Response) => {
     try {
       const { agent, message, typeMessage } = req.body;
@@ -389,12 +180,34 @@ export function setupWebhookProxy(app: Express) {
       };
       
       try {
-        // Usar sempre a URL principal (webhook-test/portfolio)
-        const principalUrl = WEBHOOK_URLS[0];
-        console.log(`[WebhookProxy] Enviando diretamente para o webhook principal: ${principalUrl}`);
+        // Primeiro, tente a URL atual
+        let currentUrl = getWebhookUrl();
+        let response = await tryWebhook(currentUrl);
         
-        // Tentar apenas a URL principal - sem fallbacks
-        const response = await tryWebhook(principalUrl);
+        // Se falhar, tente as outras URLs configuradas
+        if (!response) {
+          console.log('[WebhookProxy] Primeira tentativa falhou, tentando URLs alternativas');
+          
+          // Registra um contador para evitar loops infinitos
+          let attempts = 0;
+          
+          // Enquanto não tivermos resposta e ainda tivermos URLs não tentadas
+          while (!response && attempts < WEBHOOK_URLS.length) {
+            // Alterna para a próxima URL
+            currentUrl = switchToNextWebhookUrl();
+            
+            // Verifica se essa URL já foi tentada
+            if (triedUrls.has(currentUrl)) {
+              console.log(`[WebhookProxy] URL ${currentUrl} já foi tentada, continuando...`);
+              attempts++;
+              continue;
+            }
+            
+            // Tenta esta URL
+            response = await tryWebhook(currentUrl);
+            attempts++;
+          }
+        }
         
         // Se conseguimos uma resposta de qualquer URL, retorne-a
         if (response && response.data) {
