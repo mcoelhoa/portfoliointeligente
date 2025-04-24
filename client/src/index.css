@@ -60,18 +60,18 @@
 
 /* Custom variables for our AIGents theme */
 :root {
-  --primary-900: #0F172A;
-  --primary-800: #1E293B;
-  --primary-700: #334155;
-  --primary-600: #475569;
-  --secondary-900: #312E81;
-  --secondary-800: #4338CA;
-  --secondary-700: #4F46E5;
-  --secondary-600: #6366F1;
-  --secondary-500: #7C3AED;
-  --secondary-400: #8B5CF6;
-  --accent-500: #06B6D4;
-  --accent-400: #22D3EE;
+  --primary-900: #011D42;
+  --primary-800: #022857;
+  --primary-700: #033672;
+  --primary-600: #044A97;
+  --secondary-900: #9F0055;
+  --secondary-800: #BB0066;
+  --secondary-700: #D60076;
+  --secondary-600: #EC007F;
+  --secondary-500: #FF0089;
+  --secondary-400: #FF399E;
+  --accent-500: #0066CC;
+  --accent-400: #0080FF;
 }
 
 /* Global styles */
@@ -102,8 +102,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes glow {
-  0% { box-shadow: 0 0 5px rgba(124, 58, 237, 0.5), 0 0 10px rgba(124, 58, 237, 0.2); }
-  100% { box-shadow: 0 0 10px rgba(124, 58, 237, 0.8), 0 0 20px rgba(124, 58, 237, 0.5); }
+  0% { box-shadow: 0 0 5px rgba(255, 0, 137, 0.5), 0 0 10px rgba(255, 0, 137, 0.2); }
+  100% { box-shadow: 0 0 10px rgba(255, 0, 137, 0.8), 0 0 20px rgba(255, 0, 137, 0.5); }
 }
 
 @keyframes gradient {
@@ -159,7 +159,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .glow-effect:hover {
-  box-shadow: 0 0 15px rgba(124, 58, 237, 0.8), 0 0 30px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 0 15px rgba(255, 0, 137, 0.8), 0 0 30px rgba(255, 0, 137, 0.4);
 }
 
 /* Button styling */
@@ -171,7 +171,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary:hover {
   background-position: right center;
-  box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+  box-shadow: 0 0 15px rgba(255, 0, 137, 0.5);
 }
 
 /* Neural background */
@@ -202,8 +202,8 @@ h1, h2, h3, h4, h5, h6 {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at top right, rgba(124, 58, 237, 0.2), rgba(15, 23, 42, 0) 60%),
-              radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.2), rgba(15, 23, 42, 0) 60%);
+  background: radial-gradient(circle at top right, rgba(255, 0, 137, 0.2), rgba(1, 29, 66, 0) 60%),
+              radial-gradient(circle at bottom left, rgba(0, 102, 204, 0.2), rgba(1, 29, 66, 0) 60%);
   z-index: -1;
 }
 
