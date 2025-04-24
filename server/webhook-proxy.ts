@@ -6,24 +6,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// Estender a interface Request para incluir o campo file do multer
-declare global {
-  namespace Express {
-    interface Request {
-      file?: {
-        fieldname: string;
-        originalname: string;
-        encoding: string;
-        mimetype: string;
-        size: number;
-        destination: string;
-        filename: string;
-        path: string;
-        buffer: Buffer;
-      };
-    }
-  }
-}
+// Usar apenas a tipagem padrão do multer para o Request
+// Não precisamos redefinir a interface pois @types/multer já faz isso corretamente
 
 // URLs do webhook para tentativas alternativas (a partir das variáveis de ambiente)
 const WEBHOOK_URLS = [

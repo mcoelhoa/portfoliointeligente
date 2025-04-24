@@ -130,6 +130,23 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       setAudioChunks([]);
       setAudioDuration(0);
       
+      // Garantir que qualquer gravação anterior seja parada e suas trilhas fechadas
+      if (audioRecorder) {
+        try {
+          audioRecorder.ondataavailable = null;
+          audioRecorder.onstop = null;
+          if (audioRecorder.state !== 'inactive') {
+            audioRecorder.stop();
+          }
+          if (audioRecorder.stream) {
+            audioRecorder.stream.getTracks().forEach(track => track.stop());
+          }
+        } catch (err) {
+          console.warn("Erro ao limpar gravador anterior:", err);
+        }
+      }
+      
+      console.log("Solicitando acesso ao microfone...");
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           // Configuração para reduzir a qualidade do áudio e economizar tamanho
@@ -140,6 +157,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           autoGainControl: true
         }
       });
+      
+      console.log("Acesso ao microfone concedido, configurando gravador...");
       
       // Usando o codec de áudio mais compacto disponível, geralmente opus
       // Definindo baixo bitrate para áudio de voz
@@ -152,21 +171,30 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       let recorder;
       if (MediaRecorder.isTypeSupported(options.mimeType)) {
         recorder = new MediaRecorder(stream, options);
+        console.log("Usando codec Opus otimizado");
       } else {
         // Fallback para o codec padrão
         recorder = new MediaRecorder(stream);
         console.warn("Codec Opus não suportado, usando codec padrão");
       }
       
+      // Variável para armazenar chunks localmente (além do state)
+      const chunks: Blob[] = [];
+      
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
-          setAudioChunks(chunks => [...chunks, e.data]);
+          console.log(`Chunk de áudio recebido: ${e.data.size} bytes`);
+          chunks.push(e.data);
+          setAudioChunks(currentChunks => [...currentChunks, e.data]);
         }
       };
       
       recorder.onstop = () => {
-        // Quando a gravação parar, envia o áudio
-        handleSendAudio();
+        console.log(`Gravação finalizada com ${chunks.length} chunks`);
+        
+        // Quando a gravação parar, envia o áudio usando os chunks coletados localmente
+        // para evitar problemas de timing com o state do React
+        handleSendAudioWithChunks(chunks);
         
         // Limpar o timer quando a gravação parar
         if (audioTimer) {
@@ -175,20 +203,20 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         }
       };
       
-      // Definir um intervalo curto para obter chunks menores (500ms)
-      recorder.start(500);
+      // Definir um intervalo curto para obter chunks menores (250ms)
+      recorder.start(250);
       setAudioRecorder(recorder);
       setIsRecording(true);
       
-      // Iniciar o temporizador para atualizar a duração em tempo real (precisamente a cada segundo)
+      console.log("Gravação de áudio iniciada com sucesso");
+      
+      // Iniciar o temporizador para atualizar a duração em tempo real
       const startTime = Date.now();
       const timer = setInterval(() => {
         const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
         setAudioDuration(elapsedSeconds);
       }, 200); // Atualiza a cada 200ms para maior precisão visual
       setAudioTimer(timer);
-      
-      console.log("Gravação de áudio iniciada");
     } catch (error) {
       console.error("Erro ao iniciar gravação de áudio:", error);
       alert("Não foi possível iniciar a gravação de áudio. Verifique se seu navegador tem permissão para acessar o microfone.");
@@ -252,13 +280,19 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     }
   };
   
-  // Função para enviar o áudio gravado para o webhook
-  const handleSendAudio = async () => {
-    if (audioChunks.length === 0) return;
+  // Função para enviar o áudio usando chunks passados como parâmetro
+  // (não depende do state para evitar problemas de timing)
+  const handleSendAudioWithChunks = async (chunks: Blob[]) => {
+    if (!chunks.length) {
+      console.warn("Tentativa de enviar áudio sem chunks");
+      return;
+    }
+    
+    console.log(`Preparando para enviar ${chunks.length} chunks de áudio`);
     
     try {
       // Criar um blob com todos os chunks usando o formato compactado WebM com codec Opus
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+      const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
       
       // Verificar o tamanho do áudio
       console.log(`Tamanho do áudio original: ${(audioBlob.size / 1024).toFixed(2)} KB`);
@@ -284,18 +318,26 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       setIsTyping(true);
       
       try {
-        // Criar um FormData e enviar o áudio diretamente
-        const formData = new FormData();
-        formData.append('agent', convertToUrlFriendly(agent.name));
-        formData.append('typeMessage', 'audio');
-        formData.append('audioFile', audioBlob, `audio_${Date.now()}.webm`);
+        // Converter o blob para base64 para garantir que seja enviado nesse formato
+        const base64Audio = await blobToBase64(audioBlob);
         
-        console.log("Enviando áudio via FormData para rota dedicada");
+        if (!base64Audio) {
+          throw new Error("Falha ao converter áudio para base64");
+        }
         
-        // Enviar para a rota específica de áudio
-        const response = await fetch('/api/webhook-proxy/audio', {
+        // Enviar o áudio como JSON com base64
+        console.log("Enviando áudio diretamente como base64");
+        
+        const response = await fetch('/api/webhook-proxy', {
           method: 'POST',
-          body: formData
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            agent: convertToUrlFriendly(agent.name),
+            message: base64Audio,
+            typeMessage: 'audio'
+          })
         });
         
         if (!response.ok) {
@@ -328,7 +370,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         ]);
       }
       
-      // Limpar os chunks de áudio
+      // Limpar os chunks de áudio do state
       setAudioChunks([]);
       
     } catch (error) {
@@ -347,6 +389,38 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         }
       ]);
     }
+  };
+  
+  // Helper function para converter Blob para base64
+  const blobToBase64 = (blob: Blob): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          // Extrair apenas a parte base64 (removendo o prefixo data:audio/webm;base64,)
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        } else {
+          resolve(null);
+        }
+      };
+      reader.onerror = () => {
+        console.error('Erro ao ler o blob como base64');
+        resolve(null);
+      };
+      reader.readAsDataURL(blob);
+    });
+  };
+  
+  // Função original mantida para compatibilidade, agora usando a nova implementação
+  const handleSendAudio = async () => {
+    if (audioChunks.length === 0) {
+      console.warn("Tentativa de enviar áudio sem chunks no state");
+      return;
+    }
+    
+    // Delegar para a implementação que usa chunks locais
+    await handleSendAudioWithChunks([...audioChunks]);
   };
 
   // Initial welcome message from the agent
