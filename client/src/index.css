@@ -80,6 +80,7 @@ body {
   color: white;
   font-family: 'Questrial', sans-serif;
   overflow-x: hidden;
+  line-height: 1.6;
 }
 
 .font-body {
@@ -93,6 +94,57 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Questrial', sans-serif;
   letter-spacing: -0.02em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Section dividers with curved shapes */
+.section-divider {
+  position: relative;
+}
+
+.section-divider::after {
+  content: '';
+  position: absolute;
+  bottom: -50px;
+  left: 0;
+  width: 100%;
+  height: 100px;
+  background-color: inherit;
+  border-radius: 0 0 50% 50% / 0 0 100px 100px;
+  z-index: 1;
+}
+
+/* Alternating section backgrounds */
+.section-light {
+  background-color: white;
+  color: var(--primary-900);
+  position: relative;
+}
+
+.section-dark {
+  background-color: var(--primary-900);
+  color: white;
+  position: relative;
+}
+
+.section-gradient {
+  background: linear-gradient(135deg, var(--primary-900) 0%, var(--primary-700) 100%);
+  color: white;
+  position: relative;
+}
+
+/* Modern spacing utilities */
+.section-padding {
+  padding-top: 100px;
+  padding-bottom: 100px;
+}
+
+@media (max-width: 768px) {
+  .section-padding {
+    padding-top: 60px;
+    padding-bottom: 60px;
+  }
 }
 
 /* Animations */
