@@ -602,13 +602,13 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       onClick={handleOutsideClick}
     >
       <div 
-        className="bg-[#1d2541] rounded-xl w-full max-w-md mx-4 shadow-xl overflow-hidden"
+        className="bg-[var(--primary-900)] rounded-xl w-full max-w-md mx-4 shadow-xl overflow-hidden"
         style={{ animation: 'zoom-in-bounce 300ms' }}
       >
         {/* Chat header */}
-        <div className="bg-[#2d3a5e] p-4 flex items-center justify-between">
+        <div className="bg-[var(--primary-800)] p-4 flex items-center justify-between">
           <div className="flex items-center">
-            <div className="w-12 h-12 rounded-full bg-[#5c5dec] flex items-center justify-center mr-3">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--secondary-600)] to-[var(--secondary-500)] flex items-center justify-center mr-3">
               <i className={`${agent.icon} text-xl text-white`}></i>
             </div>
             <div>
@@ -625,7 +625,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         </div>
         
         {/* Chat messages */}
-        <div className="p-4 h-80 overflow-y-auto bg-[#1d2541] flex flex-col space-y-3 chat-messages">
+        <div className="p-4 h-80 overflow-y-auto bg-[var(--primary-900)] flex flex-col space-y-3 chat-messages">
           {messages.map(message => (
             <div 
               key={message.id} 
@@ -634,8 +634,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
               <div 
                 className={`${message.type === 'audio' ? 'min-w-[100px]' : 'max-w-[80%]'} p-3 rounded-lg ${
                   message.sender === 'user' 
-                    ? 'bg-[#5c5dec] text-white rounded-tr-none' 
-                    : 'bg-[#2d3a5e] text-white rounded-tl-none'
+                    ? 'bg-[var(--secondary-600)] text-white rounded-tr-none' 
+                    : 'bg-[var(--primary-800)] text-white rounded-tl-none'
                 }`}
               >
                 {message.type === 'audio' ? (
@@ -676,7 +676,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           
           {isTyping && (
             <div className="flex justify-start">
-              <div className="bg-[#2d3a5e] p-3 rounded-lg rounded-tl-none">
+              <div className="bg-[var(--primary-800)] p-3 rounded-lg rounded-tl-none">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"></div>
                   <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -688,14 +688,14 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         </div>
         
         {/* Chat input */}
-        <div className="p-4 bg-[#1d2541] flex items-center">
+        <div className="p-4 bg-[var(--primary-900)] flex items-center">
           <input 
             type="text" 
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua mensagem..." 
-            className="flex-1 bg-[#26304c] border-none rounded-full px-5 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-0"
+            className="flex-1 bg-[var(--primary-800)] border-none rounded-full px-5 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-0"
           />
           
           {/* Contador de tempo de gravação */}
@@ -721,7 +721,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
               {/* Botão de envio quando estiver gravando (para o áudio e envia) */}
               <button 
                 onClick={stopRecording}
-                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-[#5c5dec] text-white"
+                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-[var(--secondary-600)] text-white"
                 title="Parar e enviar áudio"
               >
                 <i className="ri-send-plane-fill text-xl"></i>
@@ -732,7 +732,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
               {/* Botão de gravação de áudio quando não estiver gravando */}
               <button 
                 onClick={startRecording}
-                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-[#3b4167] hover:bg-[#4b5187] text-white transition-colors"
+                className="ml-2 w-12 h-12 rounded-full flex items-center justify-center bg-[var(--primary-800)] hover:bg-[var(--primary-700)] text-white transition-colors"
                 title="Gravar áudio"
               >
                 <i className="ri-mic-fill text-xl"></i>
@@ -744,8 +744,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
                 disabled={!inputValue.trim()}
                 className={`ml-2 w-12 h-12 rounded-full flex items-center justify-center ${
                   inputValue.trim() 
-                    ? 'bg-[#5c5dec]' 
-                    : 'bg-[#3b4167]'
+                    ? 'bg-[var(--secondary-600)]' 
+                    : 'bg-[var(--primary-800)]'
                 } text-white`}
                 title="Enviar mensagem"
               >
