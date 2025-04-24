@@ -4,10 +4,14 @@ export default function Footer() {
 
   return (
     <footer className="pt-24 pb-12 bg-[var(--primary-900)] relative">
-      {/* Wave top decoration */}
-      <div className="absolute top-0 left-0 w-full overflow-hidden rotate-180">
-        <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-16">
-          <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="white"></path>
+      {/* Wave top decoration - matching the reference */}
+      <div className="absolute top-0 left-0 w-full h-24 overflow-hidden">
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-full">
+          <path 
+            d="M600,112C268.6,112,0,75.6,0,32V0H1200V32C1200,75.6,931.4,112,600,112Z" 
+            fill="white"
+            transform="rotate(180)"
+          ></path>
         </svg>
       </div>
 

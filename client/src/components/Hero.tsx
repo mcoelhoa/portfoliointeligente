@@ -48,11 +48,11 @@ export default function Hero() {
         </svg>
       </div>
       
-      {/* Nexus-style abstract shapes - corrected curve */}
-      <div className="absolute -bottom-2 left-0 w-full h-20 z-0 overflow-hidden">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="w-full h-full">
+      {/* Nexus-style abstract shapes - improved curve matching the reference */}
+      <div className="absolute -bottom-1 left-0 w-full h-24 z-0 overflow-hidden">
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-full">
           <path 
-            d="M0,160L48,144C96,128,192,96,288,90.7C384,85,480,107,576,128C672,149,768,171,864,165.3C960,160,1056,128,1152,117.3C1248,107,1344,117,1392,122.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" 
+            d="M600,112C268.6,112,0,75.6,0,32V0H1200V32C1200,75.6,931.4,112,600,112Z" 
             fill="white"
           ></path>
         </svg>

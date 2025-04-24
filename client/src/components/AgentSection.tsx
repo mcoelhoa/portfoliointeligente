@@ -64,12 +64,13 @@ export default function AgentSection() {
         </div>
       </div>
       
-      {/* Nexus-style wave transition to the next section - corrected curve */}
-      <div className="absolute -bottom-2 left-0 w-full h-20 z-0 overflow-hidden">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="w-full h-full">
+      {/* Nexus-style wave transition to the next section - matching the reference */}
+      <div className="absolute -bottom-1 left-0 right-0 w-full h-24 z-0 overflow-hidden">
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-full">
           <path 
-            d="M0,64L48,80C96,96,192,128,288,144C384,160,480,160,576,138.7C672,117,768,75,864,80C960,85,1056,139,1152,144C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" 
+            d="M600,112C268.6,112,0,75.6,0,32V0H1200V32C1200,75.6,931.4,112,600,112Z" 
             fill="var(--primary-900)"
+            transform="rotate(180)"
           ></path>
         </svg>
       </div>
