@@ -37,6 +37,27 @@ function convertToUrlFriendly(name: string): string {
     .replace(/\s+/g, '-'); // substitui espaços por hífens
 }
 
+// Helper function para converter Blob para base64
+function blobToBase64(blob: Blob): Promise<string | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        // Extrair apenas a parte base64 (removendo o prefixo data:audio/webm;base64,)
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      } else {
+        resolve(null);
+      }
+    };
+    reader.onerror = () => {
+      console.error('Erro ao ler o blob como base64');
+      resolve(null);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
 // Função para enviar mensagem para o webhook através do proxy no servidor
 async function sendMessageToWebhook(
   agentName: string, 
@@ -405,26 +426,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     }
   };
   
-  // Helper function para converter Blob para base64
-  const blobToBase64 = (blob: Blob): Promise<string | null> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          // Extrair apenas a parte base64 (removendo o prefixo data:audio/webm;base64,)
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        } else {
-          resolve(null);
-        }
-      };
-      reader.onerror = () => {
-        console.error('Erro ao ler o blob como base64');
-        resolve(null);
-      };
-      reader.readAsDataURL(blob);
-    });
-  };
+  // Usamos a função blobToBase64 global definida acima
   
   // Função original mantida para compatibilidade, agora usando a nova implementação
   const handleSendAudio = async () => {

@@ -10,9 +10,10 @@ import * as os from 'os';
 // Não precisamos redefinir a interface pois @types/multer já faz isso corretamente
 
 // URLs do webhook para tentativas alternativas (a partir das variáveis de ambiente)
+// Agora usando o webhook de teste como padrão conforme solicitado pelo usuário
 const WEBHOOK_URLS = [
+  'https://n8neditor.unitmedia.cloud/webhook-test/portfolio', // Webhook principal explicitamente solicitado
   process.env.WEBHOOK_URL_PRIMARY || 'https://n8neditor.unitmedia.cloud/webhook/portfolio',
-  process.env.WEBHOOK_URL_SECONDARY || 'https://n8neditor.unitmedia.cloud/webhook-test/portfolio',
   process.env.WEBHOOK_URL_TERTIARY || 'https://n8n.unitmedia.cloud/webhook/portfolio'
 ];
 
@@ -134,51 +135,25 @@ async function tryWebhook(webhookUrl: string, data: any, headers: any = {}, time
 
 // Função para tentar múltiplos webhooks até obter sucesso
 async function tryMultipleWebhooks(data: any, headers: any = {}): Promise<any> {
-  // Salvar as URLs já tentadas nesta requisição para evitar ciclos
-  const triedUrls = new Set<string>();
-  
   try {
-    // Primeiro, tente a URL atual
-    let currentUrl = getWebhookUrl();
+    // Forçar uso do webhook principal conforme solicitado pelo usuário
+    const principalUrl = WEBHOOK_URLS[0]; // Sempre usar o primeiro webhook (webhook-test/portfolio)
+    console.log(`[WebhookProxy] Enviando diretamente para o webhook principal: ${principalUrl}`);
     
-    if (!triedUrls.has(currentUrl)) {
-      triedUrls.add(currentUrl);
-      let response = await tryWebhook(currentUrl, data, headers);
-      
-      // Se funcionou, retorna
-      if (response) return response;
-    }
+    // Tentar o webhook principal
+    const response = await tryWebhook(principalUrl, data, headers);
     
-    console.log('[WebhookProxy] Primeira tentativa falhou, tentando URLs alternativas');
+    // Se funcionou, retorna
+    if (response) return response;
     
-    // Registra um contador para evitar loops infinitos
-    let attempts = 0;
+    console.log('[WebhookProxy] Tentativa ao webhook principal falhou');
     
-    // Enquanto ainda tivermos URLs não tentadas
-    while (attempts < WEBHOOK_URLS.length) {
-      // Alterna para a próxima URL
-      currentUrl = switchToNextWebhookUrl();
-      
-      // Verifica se essa URL já foi tentada
-      if (triedUrls.has(currentUrl)) {
-        console.log(`[WebhookProxy] URL ${currentUrl} já foi tentada, continuando...`);
-        attempts++;
-        continue;
-      }
-      
-      // Tenta esta URL
-      triedUrls.add(currentUrl);
-      const response = await tryWebhook(currentUrl, data, headers);
-      if (response) return response;
-      
-      attempts++;
-    }
-    
-    // Se chegamos aqui, nenhuma das URLs funcionou
-    console.warn('[WebhookProxy] Todas as URLs do webhook falharam, usando resposta mock');
+    // Se o webhook principal falhar, não tentar alternativas conforme solicitado
+    // (mudança de comportamento anterior)
+    console.warn('[WebhookProxy] Webhook principal falhou, retornando erro');
     return null;
   } catch (error) {
-    console.error('[WebhookProxy] Erro ao tentar enviar para webhooks:', error);
+    console.error('[WebhookProxy] Erro ao tentar enviar para o webhook:', error);
     return null;
   }
 }
@@ -271,32 +246,30 @@ export function setupWebhookProxy(app: Express) {
       
       console.log(`[WebhookProxy] Enviando áudio para webhook com tipo: ${typeMessage}`);
       
-      // Forçar envio diretamente para todas as URLs de webhook disponíveis
-      // para garantir que pelo menos uma receba o áudio
+      // Forçar envio diretamente para o webhook principal
       let responseReceived = false;
       let successResponse = null;
       
-      // Tentar cada URL de webhook individualmente
-      for (const webhookUrl of WEBHOOK_URLS) {
-        try {
-          console.log(`[WebhookProxy] Tentando enviar áudio para webhook: ${webhookUrl}`);
-          
-          const response = await axios.post(webhookUrl, data, {
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            timeout: 15000 // 15 segundos de timeout para áudio (maior que o normal)
-          });
-          
-          if (response.data) {
-            console.log(`[WebhookProxy] Resposta recebida de ${webhookUrl}: ${JSON.stringify(response.data).substring(0, 100)}...`);
-            responseReceived = true;
-            successResponse = response;
-            break; // Se uma URL funcionou, não precisa tentar as outras
-          }
-        } catch (error) {
-          console.warn(`[WebhookProxy] Erro ao enviar áudio para ${webhookUrl}:`, (error as any).message);
+      // Usar apenas o webhook principal conforme solicitado pelo usuário
+      const webhookUrl = WEBHOOK_URLS[0]; // webhook-test/portfolio
+      
+      try {
+        console.log(`[WebhookProxy] Enviando áudio para webhook principal: ${webhookUrl}`);
+        
+        const response = await axios.post(webhookUrl, data, {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          timeout: 15000 // 15 segundos de timeout para áudio (maior que o normal)
+        });
+        
+        if (response.data) {
+          console.log(`[WebhookProxy] Resposta recebida de ${webhookUrl}: ${JSON.stringify(response.data).substring(0, 100)}...`);
+          responseReceived = true;
+          successResponse = response;
         }
+      } catch (error) {
+        console.warn(`[WebhookProxy] Erro ao enviar áudio para ${webhookUrl}:`, (error as any).message);
       }
       
       // Limpar o arquivo temporário após enviá-lo
@@ -416,34 +389,12 @@ export function setupWebhookProxy(app: Express) {
       };
       
       try {
-        // Primeiro, tente a URL atual
-        let currentUrl = getWebhookUrl();
-        let response = await tryWebhook(currentUrl);
+        // Usar sempre a URL principal (webhook-test/portfolio)
+        const principalUrl = WEBHOOK_URLS[0];
+        console.log(`[WebhookProxy] Enviando diretamente para o webhook principal: ${principalUrl}`);
         
-        // Se falhar, tente as outras URLs configuradas
-        if (!response) {
-          console.log('[WebhookProxy] Primeira tentativa falhou, tentando URLs alternativas');
-          
-          // Registra um contador para evitar loops infinitos
-          let attempts = 0;
-          
-          // Enquanto não tivermos resposta e ainda tivermos URLs não tentadas
-          while (!response && attempts < WEBHOOK_URLS.length) {
-            // Alterna para a próxima URL
-            currentUrl = switchToNextWebhookUrl();
-            
-            // Verifica se essa URL já foi tentada
-            if (triedUrls.has(currentUrl)) {
-              console.log(`[WebhookProxy] URL ${currentUrl} já foi tentada, continuando...`);
-              attempts++;
-              continue;
-            }
-            
-            // Tenta esta URL
-            response = await tryWebhook(currentUrl);
-            attempts++;
-          }
-        }
+        // Tentar apenas a URL principal - sem fallbacks
+        const response = await tryWebhook(principalUrl);
         
         // Se conseguimos uma resposta de qualquer URL, retorne-a
         if (response && response.data) {
