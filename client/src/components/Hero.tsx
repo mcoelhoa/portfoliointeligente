@@ -2,7 +2,7 @@ export default function Hero() {
   const whatsappLink = "https://api.whatsapp.com/send/?phone=5524988582901&text=Ol%C3%A1%21+Vim+do+site+e+gostaria+de+saber+mais+sobre+os+agentes+de+IA.&type=phone_number&app_absent=0";
   
   return (
-    <section className="relative pt-16 pb-36 md:pt-28 md:pb-48 overflow-hidden hero-bg section-dark section-divider">
+    <section className="relative pt-16 pb-24 md:pt-28 md:pb-32 overflow-hidden hero-bg section-dark section-divider">
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-5xl md:text-7xl font-tech font-bold leading-none mb-8 tracking-tight">
@@ -49,18 +49,17 @@ export default function Hero() {
       </div>
       
       {/* Nexus-style wave transition */}
-      <div className="absolute -bottom-1 left-0 w-full overflow-hidden" style={{ height: "150px" }}>
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "70px", zIndex: 5 }}>
         <svg 
-          viewBox="0 0 1200 120" 
-          preserveAspectRatio="none" 
           xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 1440 320" 
+          preserveAspectRatio="none"
           className="absolute bottom-0 w-full h-full"
-          style={{ transform: "rotate(180deg) translateY(1px)" }}
         >
           <path 
-            d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86A600.21,600.21,0,0,1,0,27.35V120H1200V95.8C1132.19,118.92,1055.71,111.31,985.66,92.83Z" 
-            fill="white" 
-            className="shape-fill"
+            fill="white"
+            fillOpacity="1" 
+            d="M0,128L80,144C160,160,320,192,480,192C640,192,800,160,960,154.7C1120,149,1280,171,1360,181.3L1440,192L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"
           ></path>
         </svg>
       </div>

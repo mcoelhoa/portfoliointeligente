@@ -2,7 +2,7 @@ import { features } from "@/data/features";
 
 export default function FeaturesSection() {
   return (
-    <section id="about" className="pt-16 pb-24 md:pt-28 md:pb-36 relative section-dark section-divider">
+    <section id="about" className="pt-16 pb-24 md:pt-24 md:pb-28 relative section-dark section-divider">
       <div className="container mx-auto px-4">
         <div className="text-center mb-20">
           <span className="inline-block py-1 px-3 rounded-full bg-[var(--secondary-600)]/10 text-[var(--secondary-500)] text-sm font-semibold mb-4 transform transition-transform hover:scale-105 duration-300">
@@ -45,18 +45,17 @@ export default function FeaturesSection() {
       </div>
       
       {/* Nexus-style wave transition */}
-      <div className="absolute -bottom-1 left-0 w-full overflow-hidden" style={{ height: "150px" }}>
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "70px", zIndex: 5 }}>
         <svg 
-          viewBox="0 0 1200 120" 
-          preserveAspectRatio="none" 
           xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 1440 320" 
+          preserveAspectRatio="none"
           className="absolute bottom-0 w-full h-full"
-          style={{ transform: "rotate(180deg) translateY(1px)" }}
         >
           <path 
-            d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" 
-            fill="white" 
-            className="shape-fill"
+            fill="white"
+            fillOpacity="1" 
+            d="M0,224L80,229.3C160,235,320,245,480,245.3C640,245,800,235,960,213.3C1120,192,1280,160,1360,144L1440,128L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"
           ></path>
         </svg>
       </div>

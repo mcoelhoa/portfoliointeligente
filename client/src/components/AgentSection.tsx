@@ -16,7 +16,7 @@ export default function AgentSection() {
   };
 
   return (
-    <section id="agents" className="pt-16 pb-24 md:pt-20 md:pb-32 relative section-light section-divider">
+    <section id="agents" className="pt-16 pb-24 md:pt-20 md:pb-28 relative section-light section-divider">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <span className="inline-block py-1 px-3 rounded-full bg-[var(--primary-900)]/10 text-[var(--primary-900)] text-sm font-semibold mb-4 transform transition-transform hover:scale-105 duration-300">
@@ -65,18 +65,17 @@ export default function AgentSection() {
       </div>
       
       {/* Nexus-style wave transition */}
-      <div className="absolute -bottom-1 left-0 w-full overflow-hidden" style={{ height: "150px" }}>
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "70px", zIndex: 5 }}>
         <svg 
-          viewBox="0 0 1200 120" 
-          preserveAspectRatio="none" 
           xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 1440 320" 
+          preserveAspectRatio="none"
           className="absolute bottom-0 w-full h-full"
-          style={{ transform: "translateY(1px)" }}
         >
           <path 
-            d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86A600.21,600.21,0,0,1,0,27.35V120H1200V95.8C1132.19,118.92,1055.71,111.31,985.66,92.83Z" 
-            fill="var(--primary-900)" 
-            className="shape-fill"
+            fill="var(--primary-900)"
+            fillOpacity="1" 
+            d="M0,96L80,112C160,128,320,160,480,170.7C640,181,800,171,960,138.7C1120,107,1280,53,1360,26.7L1440,0L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"
           ></path>
         </svg>
       </div>
