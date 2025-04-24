@@ -19,7 +19,7 @@ export default function Footer() {
               href="http://instagram.com/unitmedia1/" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="w-12 h-12 rounded-full bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] flex items-center justify-center hover:shadow-lg hover:shadow-[#FF416C]/30 transition-all"
+              className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--secondary-500)] to-[var(--accent-500)] flex items-center justify-center hover:shadow-lg hover:shadow-[var(--secondary-500)]/30 transition-all"
             >
               <i className="ri-instagram-line text-xl text-white"></i>
             </a>
