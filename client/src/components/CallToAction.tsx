@@ -6,7 +6,7 @@ export default function CallToAction() {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-5xl mx-auto">
           <div className="bg-gradient-to-br from-[var(--primary-900)] to-[var(--primary-800)] rounded-3xl p-2 shadow-2xl overflow-hidden">
-            <div className="relative bg-gradient-to-br from-[var(--primary-900)] to-[var(--primary-800)] rounded-2xl p-8 md:p-12 lg:p-16 flex flex-col md:flex-row items-center space-y-10 md:space-y-0 md:space-x-8 backdrop-blur-sm">
+            <div className="relative bg-gradient-to-br from-[var(--primary-900)] to-[var(--primary-800)] rounded-2xl p-8 md:p-12 lg:p-16 flex flex-col items-center backdrop-blur-sm">
               
               {/* Decorative elements */}
               <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20">
@@ -15,45 +15,27 @@ export default function CallToAction() {
               <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-gradient-to-br from-[var(--secondary-500)]/20 to-[var(--secondary-600)]/10 blur-2xl"></div>
               <div className="absolute -bottom-24 -left-24 w-48 h-48 rounded-full bg-gradient-to-tr from-[var(--accent-500)]/20 to-transparent blur-2xl"></div>
               
-              {/* Text content */}
-              <div className="flex-1 text-center md:text-left z-10">
+              {/* Text content (centered) */}
+              <div className="text-center z-10 max-w-3xl mx-auto">
                 <span className="inline-block py-1 px-3 rounded-full bg-[var(--secondary-600)]/10 text-[var(--secondary-500)] text-sm font-semibold mb-6">
                   Comece Agora
                 </span>
                 <h2 className="text-3xl md:text-5xl font-tech font-bold mb-6 text-white leading-tight">
                   Pronto para <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--secondary-500)] to-[var(--secondary-400)]">transformar</span> sua experiência com IA?
                 </h2>
-                <p className="text-lg text-white/80 mb-8 max-w-2xl">
+                <p className="text-lg text-white/80 mb-8 mx-auto">
                   Comece agora mesmo e descubra como nossos agentes de IA podem revolucionar seus processos, aumentar sua produtividade e impulsionar seus resultados.
                 </p>
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                <div className="flex justify-center">
                   <a 
                     href={whatsappLink} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="px-8 py-4 rounded-full bg-gradient-to-r from-[var(--secondary-600)] to-[var(--secondary-500)] font-medium text-white hover:shadow-lg hover:shadow-[var(--secondary-500)]/30 transition-all duration-300 transform hover:-translate-y-1 w-full sm:w-auto flex items-center justify-center"
+                    className="px-8 py-4 rounded-full bg-gradient-to-r from-[var(--secondary-600)] to-[var(--secondary-500)] font-medium text-white hover:shadow-lg hover:shadow-[var(--secondary-500)]/30 transition-all duration-300 transform hover:-translate-y-1 w-full sm:w-auto flex items-center justify-center max-w-xs mx-auto"
                   >
                     <span>Converse pelo WhatsApp</span>
                     <i className="ri-whatsapp-line ml-2 text-lg"></i>
                   </a>
-                  <a 
-                    href="#agents" 
-                    className="px-8 py-4 rounded-full border-2 border-white/20 hover:border-white/40 font-medium text-white transition-all duration-300 transform hover:-translate-y-1 w-full sm:w-auto flex items-center justify-center"
-                  >
-                    Ver Agentes
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </a>
-                </div>
-              </div>
-              
-              {/* Decorative image/shape */}
-              <div className="w-48 h-48 md:w-64 md:h-64 relative flex-shrink-0 z-0 hidden lg:block">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--secondary-500)]/20 to-[var(--accent-500)]/20 animate-pulse-slow"></div>
-                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-[var(--secondary-600)]/30 to-[var(--accent-500)]/30 animate-float"></div>
-                <div className="absolute inset-8 rounded-full bg-gradient-to-br from-[var(--secondary-600)]/40 to-[var(--accent-500)]/40 flex items-center justify-center">
-                  <i className="ri-robot-line text-5xl text-white"></i>
                 </div>
               </div>
             </div>

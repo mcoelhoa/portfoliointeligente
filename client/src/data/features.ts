@@ -40,6 +40,6 @@ export const features: Feature[] = [
     id: 6,
     title: "Integração Simples",
     description: "Fácil implementação com suas ferramentas e sistemas existentes, sem complicações técnicas.",
-    icon: "ri-flash-line",
+    icon: "ri-plug-line",
   },
 ];

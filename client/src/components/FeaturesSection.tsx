@@ -44,10 +44,13 @@ export default function FeaturesSection() {
         </div>
       </div>
       
-      {/* Nexus-style wave transition to the next section */}
+      {/* Nexus-style wave transition to the next section - corrected curve */}
       <div className="absolute -bottom-2 left-0 w-full h-20 z-0 overflow-hidden">
-        <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full">
-          <path d="M0,100 C150,200 350,0 500,100 L500,150 L0,150 Z" fill="white"></path>
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" className="w-full h-full">
+          <path 
+            d="M0,32L48,53.3C96,75,192,117,288,122.7C384,128,480,96,576,96C672,96,768,128,864,138.7C960,149,1056,139,1152,128C1248,117,1344,107,1392,101.3L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" 
+            fill="white"
+          ></path>
         </svg>
       </div>
     </section>
