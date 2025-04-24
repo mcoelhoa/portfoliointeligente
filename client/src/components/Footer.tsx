@@ -1,8 +1,10 @@
 import unitmediaLogo from "@/assets/unitmedia-logo.png";
+import { socialLinks } from "@/config/social";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
-  const whatsappLink = "https://api.whatsapp.com/send/?phone=5524988582901&text=Ol%C3%A1%21+Vim+do+site+e+gostaria+de+saber+mais+sobre+os+agentes+de+IA.&type=phone_number&app_absent=0";
+  // Usar link do WhatsApp das variáveis de ambiente
+  const whatsappLink = socialLinks.whatsapp;
 
   return (
     <footer className="py-16 bg-[var(--primary-900)] relative">
@@ -28,7 +30,7 @@ export default function Footer() {
           {/* Social icons */}
           <div className="flex justify-center mb-10 gap-6">
             <a 
-              href="http://instagram.com/unitmedia1/" 
+              href={socialLinks.instagram}
               target="_blank" 
               rel="noopener noreferrer" 
               className="w-12 h-12 rounded-full bg-gradient-to-r from-[var(--secondary-600)] to-[var(--secondary-500)] p-0.5 flex items-center justify-center hover:shadow-lg hover:shadow-[var(--secondary-600)]/30 transition-all transform hover:scale-110 duration-300"
