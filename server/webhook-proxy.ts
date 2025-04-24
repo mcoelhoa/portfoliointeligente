@@ -106,11 +106,26 @@ export function setupWebhookProxy(app: Express) {
     try {
       const { agent, message, typeMessage } = req.body;
       
+      // Log detalhado de recebimento da requisição
+      console.log(`[WebhookProxy] Requisição recebida: ${new Date().toISOString()}`);
+      console.log(`[WebhookProxy] Agent: ${agent}, TypeMessage: ${typeMessage}`);
+      
       // Verifica se todos os campos necessários estão presentes
       if (!agent || !message || !typeMessage) {
+        console.error('[WebhookProxy] ERRO: Campos obrigatórios ausentes:', { 
+          agentPresente: !!agent, 
+          messagePresente: !!message, 
+          typeMessagePresente: !!typeMessage 
+        });
+        
         return res.status(400).json({ 
           error: 'Campos obrigatórios ausentes. Garanta que agent, message e typeMessage estejam presentes.'
         });
+      }
+      
+      // Log extra para áudio
+      if (typeMessage === 'audio') {
+        console.log(`[WebhookProxy] Processando ÁUDIO: comprimento da string base64 = ${typeof message === 'string' ? message.length : 'N/A'}`);
       }
       
       if (enableDetailedLogs) {
