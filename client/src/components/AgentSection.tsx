@@ -16,7 +16,7 @@ export default function AgentSection() {
   };
 
   return (
-    <section id="agents" className="pt-16 pb-24 md:pt-20 md:pb-28 relative section-light section-divider">
+    <section id="agents" className="pt-16 pb-20 md:pt-20 md:pb-24 relative section-light section-divider">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <span className="inline-block py-1 px-3 rounded-full bg-[var(--primary-900)]/10 text-[var(--primary-900)] text-sm font-semibold mb-4 transform transition-transform hover:scale-105 duration-300">
@@ -75,7 +75,7 @@ export default function AgentSection() {
           <path 
             fill="var(--primary-900)"
             fillOpacity="1" 
-            d="M0,0L120,16C240,32,480,64,720,64C960,64,1200,32,1320,16L1440,0L1440,100L1320,100C1200,100,960,100,720,100C480,100,240,100,120,100L0,100Z"
+            d="M0,32L120,37.3C240,43,480,53,720,58.7C960,64,1200,64,1320,64L1440,64L1440,100L1320,100C1200,100,960,100,720,100C480,100,240,100,120,100L0,100Z"
           ></path>
         </svg>
       </div>

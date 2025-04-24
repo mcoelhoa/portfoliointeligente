@@ -2,7 +2,7 @@ import { features } from "@/data/features";
 
 export default function FeaturesSection() {
   return (
-    <section id="about" className="pt-16 pb-24 md:pt-24 md:pb-28 relative section-dark section-divider">
+    <section id="about" className="pt-16 pb-20 md:pt-24 md:pb-24 relative section-dark section-divider">
       <div className="container mx-auto px-4">
         <div className="text-center mb-20">
           <span className="inline-block py-1 px-3 rounded-full bg-[var(--secondary-600)]/10 text-[var(--secondary-500)] text-sm font-semibold mb-4 transform transition-transform hover:scale-105 duration-300">
@@ -55,7 +55,7 @@ export default function FeaturesSection() {
           <path 
             fill="white"
             fillOpacity="1" 
-            d="M0,100L120,84C240,68,480,36,720,36C960,36,1200,68,1320,84L1440,100L1440,100L1320,100C1200,100,960,100,720,100C480,100,240,100,120,100L0,100Z"
+            d="M0,0L120,10.7C240,21,480,43,720,48C960,53,1200,43,1320,37.3L1440,32L1440,100L1320,100C1200,100,960,100,720,100C480,100,240,100,120,100L0,100Z"
           ></path>
         </svg>
       </div>
