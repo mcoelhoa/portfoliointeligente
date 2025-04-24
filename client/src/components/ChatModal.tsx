@@ -97,6 +97,16 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   const [audioTimer, setAudioTimer] = useState<NodeJS.Timeout | null>(null);
   const [audioRecorder, setAudioRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  // Estado para controlar a reprodução de áudio
+  const [currentAudio, setCurrentAudio] = useState<{
+    audio: HTMLAudioElement | null;
+    messageId: number | null;
+    isPlaying: boolean;
+  }>({
+    audio: null,
+    messageId: null,
+    isPlaying: false
+  });
 
   // Função para iniciar gravação de áudio
   const startRecording = async () => {
@@ -173,24 +183,43 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   // Função para parar gravação de áudio e enviar
   const stopRecording = () => {
     if (audioRecorder && isRecording) {
-      // Importante: Não precisamos fazer nada aqui além de parar a gravação
-      // O evento 'onstop' do audioRecorder irá chamar handleSendAudio automaticamente
-      // quando a gravação parar
-      audioRecorder.stop();
-      setIsRecording(false);
+      console.log("Parando gravação para enviar áudio...");
       
-      // Fechar as trilhas da stream
-      if (audioRecorder.stream) {
-        audioRecorder.stream.getTracks().forEach(track => track.stop());
+      try {
+        // Verificar se o audioRecorder está em um estado que permite parar
+        if (audioRecorder.state === 'recording') {
+          // O evento 'onstop' do audioRecorder irá chamar handleSendAudio automaticamente
+          audioRecorder.stop();
+          console.log("Gravação de áudio finalizada");
+        } else {
+          console.warn("Gravador em estado inválido:", audioRecorder.state);
+          // Se o gravador não estiver em estado 'recording', chamar handleSendAudio diretamente
+          if (audioChunks.length > 0) {
+            console.log("Enviando chunks de áudio existentes...");
+            handleSendAudio();
+          }
+        }
+        
+        // Fechar as trilhas da stream
+        if (audioRecorder.stream) {
+          audioRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Limpar o timer
+        if (audioTimer) {
+          clearInterval(audioTimer);
+          setAudioTimer(null);
+        }
+        
+        setIsRecording(false);
+      } catch (error) {
+        console.error("Erro ao parar gravação:", error);
+        setIsRecording(false);
+        // Se ocorrer um erro, tentar enviar os chunks existentes, se houver
+        if (audioChunks.length > 0) {
+          handleSendAudio();
+        }
       }
-      
-      // Limpar o timer
-      if (audioTimer) {
-        clearInterval(audioTimer);
-        setAudioTimer(null);
-      }
-      
-      console.log("Gravação de áudio finalizada e será enviada");
     }
   };
   
@@ -407,6 +436,71 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
     }
   }, [isOpen, agent]);
 
+  // Função para reproduzir áudio
+  const playAudio = (messageId: number, audioContent: string) => {
+    // Se já tiver um áudio tocando, pare-o
+    if (currentAudio.audio && currentAudio.isPlaying) {
+      currentAudio.audio.pause();
+      currentAudio.audio.currentTime = 0;
+    }
+    
+    // Se clicar no mesmo áudio que está tocando, apenas pare
+    if (currentAudio.messageId === messageId && currentAudio.isPlaying) {
+      setCurrentAudio({
+        audio: null,
+        messageId: null,
+        isPlaying: false
+      });
+      return;
+    }
+    
+    try {
+      // Criar um elemento de áudio para reproduzir o áudio
+      const audioElement = new Audio();
+      
+      // Configurar a fonte do áudio - neste caso, estamos usando o próprio texto
+      // como identificador do áudio (em uma implementação real, seria uma URL)
+      
+      // Para áudios pequenos (textos curtos), simulamos um áudio sintético
+      const audioSrc = `data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAASAAAeMwAUFBQUFCkpKSkpKT4+Pj4+PklJSUlJSVpaWlpaWm9vb29vb3t7e3t7e4aGhoaGhpGRkZGRkaampqamprKysrKysr29vb29vcfHx8fHx9LS0tLS0uTk5OTk5PX19fX19f////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAHjOZTf9/AAAAAAAAAAAAAAAAAAAAAP/7UMQAAAesTx2R0TAI8XHk0mYbBAhBAEAQBA0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NAAIAAJ/4iIiIiIiITEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+1LECgAK6Q8+2emAAkG9J5ZxkwBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==`;
+      
+      audioElement.src = audioSrc;
+      
+      // Adicionar eventos para controlar o estado de reprodução
+      audioElement.onplay = () => {
+        setCurrentAudio({
+          audio: audioElement,
+          messageId: messageId,
+          isPlaying: true
+        });
+      };
+      
+      audioElement.onended = () => {
+        setCurrentAudio({
+          audio: null,
+          messageId: null,
+          isPlaying: false
+        });
+      };
+      
+      audioElement.onerror = (e) => {
+        console.error("Erro ao reproduzir áudio:", e);
+        setCurrentAudio({
+          audio: null,
+          messageId: null,
+          isPlaying: false
+        });
+      };
+      
+      // Iniciar a reprodução
+      audioElement.play().catch(err => {
+        console.error("Erro ao iniciar reprodução de áudio:", err);
+      });
+    } catch (error) {
+      console.error("Erro ao criar elemento de áudio:", error);
+    }
+  };
+  
   // Função para adicionar mensagens do agente com atraso sequencial
   const addAgentMessagesWithDelay = async (responses: WebhookResponse[]) => {
     setIsTyping(true);
@@ -642,14 +736,27 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
                   <div className="audio-message">
                     <div className="flex items-center">
                       <button 
-                        className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mr-2 hover:bg-white/30 transition-colors"
-                        title="Reproduzir áudio"
+                        className={`w-8 h-8 rounded-full ${currentAudio.messageId === message.id && currentAudio.isPlaying 
+                          ? 'bg-white/40' 
+                          : 'bg-white/20'} 
+                          flex items-center justify-center mr-2 hover:bg-white/30 transition-colors`}
+                        title={currentAudio.messageId === message.id && currentAudio.isPlaying ? "Pausar áudio" : "Reproduzir áudio"}
+                        onClick={() => playAudio(message.id, message.content)}
                       >
-                        <i className="ri-play-fill text-white"></i>
+                        <i className={`${currentAudio.messageId === message.id && currentAudio.isPlaying 
+                          ? 'ri-pause-fill' 
+                          : 'ri-play-fill'} text-white`}></i>
                       </button>
                       <div className="flex-1">
                         <div className="w-full h-1 bg-white/30 rounded-full">
-                          <div className="h-full w-0 bg-white rounded-full"></div>
+                          <div 
+                            className={`h-full ${currentAudio.messageId === message.id && currentAudio.isPlaying 
+                              ? 'animate-progress-bar bg-white' 
+                              : 'w-0 bg-white'} rounded-full`}
+                            style={{
+                              animationDuration: message.duration ? `${message.duration}s` : '0s'
+                            }}
+                          ></div>
                         </div>
                         <span className="text-xs text-white/70 mt-1 block">
                           {message.duration 
