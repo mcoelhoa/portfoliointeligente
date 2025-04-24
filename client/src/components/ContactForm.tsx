@@ -57,17 +57,17 @@ export default function ContactForm() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="inline-block text-3xl md:text-4xl font-tech font-bold mb-4 relative">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--secondary-400)] to-[var(--accent-400)]">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#FF416C] to-[#FF4B2B]">
                 Entre em Contato
               </span>
-              <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-[var(--secondary-500)] to-[var(--accent-500)] rounded-full"></div>
+              <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] rounded-full"></div>
             </h2>
             <p className="text-gray-300 max-w-2xl mx-auto">
               Tem dúvidas ou precisa de ajuda? Nossa equipe está pronta para atendê-lo.
             </p>
           </div>
 
-          <div className="bg-[var(--primary-800)]/50 backdrop-blur-sm rounded-xl p-8 border border-[var(--secondary-500)]/20">
+          <div className="bg-[var(--primary-800)]/50 backdrop-blur-sm rounded-xl p-8 border border-[#FF416C]/20 shadow-lg">
             <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -76,7 +76,7 @@ export default function ContactForm() {
                     type="text" 
                     id="name" 
                     placeholder="Seu nome completo" 
-                    className={`w-full px-4 py-3 bg-[var(--primary-900)]/80 rounded-lg border ${errors.name ? 'border-red-500' : 'border-[var(--primary-700)]'} text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--secondary-500)] focus:border-transparent`}
+                    className={`w-full px-4 py-3 bg-[var(--primary-900)]/80 rounded-lg border ${errors.name ? 'border-red-500' : 'border-[var(--primary-700)]'} text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#FF416C] focus:border-transparent`}
                     {...register("name")}
                   />
                   {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>}

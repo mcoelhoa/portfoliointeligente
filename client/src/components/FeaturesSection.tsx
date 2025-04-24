@@ -6,10 +6,10 @@ export default function FeaturesSection() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="inline-block text-3xl md:text-4xl font-tech font-bold mb-4 relative">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--secondary-400)] to-[var(--accent-400)]">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#FF416C] to-[#FF4B2B]">
               Por que usar nossos Agentes?
             </span>
-            <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-[var(--secondary-500)] to-[var(--accent-500)] rounded-full"></div>
+            <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-[#FF416C] to-[#FF4B2B] rounded-full"></div>
           </h2>
           <p className="text-gray-300 max-w-2xl mx-auto">
             Desenvolvidos com tecnologia de ponta para entregar resultados excepcionais em todas as áreas.
