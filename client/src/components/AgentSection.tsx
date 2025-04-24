@@ -65,17 +65,17 @@ export default function AgentSection() {
       </div>
       
       {/* Nexus-style wave transition */}
-      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "70px", zIndex: 5 }}>
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "100px", zIndex: 5, marginBottom: "-1px" }}>
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
-          viewBox="0 0 1440 320" 
+          viewBox="0 0 1440 100" 
           preserveAspectRatio="none"
           className="absolute bottom-0 w-full h-full"
         >
           <path 
             fill="var(--primary-900)"
             fillOpacity="1" 
-            d="M0,96L80,112C160,128,320,160,480,170.7C640,181,800,171,960,138.7C1120,107,1280,53,1360,26.7L1440,0L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"
+            d="M0,0L120,16C240,32,480,64,720,64C960,64,1200,32,1320,16L1440,0L1440,100L1320,100C1200,100,960,100,720,100C480,100,240,100,120,100L0,100Z"
           ></path>
         </svg>
       </div>

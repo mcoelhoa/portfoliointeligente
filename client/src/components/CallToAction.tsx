@@ -2,7 +2,7 @@ export default function CallToAction() {
   const whatsappLink = "https://api.whatsapp.com/send/?phone=5524988582901&text=Ol%C3%A1%21+Vim+do+site+e+gostaria+de+saber+mais+sobre+os+agentes+de+IA.&type=phone_number&app_absent=0";
   
   return (
-    <section className="pt-20 pb-28 md:pt-28 md:pb-36 relative section-light section-divider overflow-hidden">
+    <section className="pt-20 pb-20 md:pt-28 md:pb-28 relative section-light section-divider overflow-hidden">
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-5xl mx-auto">
           <div className="bg-gradient-to-br from-[var(--primary-900)] to-[var(--primary-800)] rounded-3xl p-2 shadow-2xl overflow-hidden">
@@ -44,17 +44,17 @@ export default function CallToAction() {
       </div>
       
       {/* Nexus-style wave transition */}
-      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "70px", zIndex: 5 }}>
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "100px", zIndex: 5, marginBottom: "-1px" }}>
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
-          viewBox="0 0 1440 320" 
+          viewBox="0 0 1440 100" 
           preserveAspectRatio="none"
           className="absolute bottom-0 w-full h-full"
         >
           <path 
             fill="var(--primary-900)"
             fillOpacity="1" 
-            d="M0,64L80,85.3C160,107,320,149,480,160C640,171,800,149,960,149.3C1120,149,1280,171,1360,181.3L1440,192L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"
+            d="M0,0L120,16C240,32,480,64,720,64C960,64,1200,32,1320,16L1440,0L1440,100L1320,100C1200,100,960,100,720,100C480,100,240,100,120,100L0,100Z"
           ></path>
         </svg>
       </div>

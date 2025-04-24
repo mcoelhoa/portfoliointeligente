@@ -45,17 +45,17 @@ export default function FeaturesSection() {
       </div>
       
       {/* Nexus-style wave transition */}
-      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "70px", zIndex: 5 }}>
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden" style={{ height: "100px", zIndex: 5, marginBottom: "-1px" }}>
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
-          viewBox="0 0 1440 320" 
+          viewBox="0 0 1440 100" 
           preserveAspectRatio="none"
           className="absolute bottom-0 w-full h-full"
         >
           <path 
             fill="white"
             fillOpacity="1" 
-            d="M0,224L80,229.3C160,235,320,245,480,245.3C640,245,800,235,960,213.3C1120,192,1280,160,1360,144L1440,128L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"
+            d="M0,100L120,84C240,68,480,36,720,36C960,36,1200,68,1320,84L1440,100L1440,100L1320,100C1200,100,960,100,720,100C480,100,240,100,120,100L0,100Z"
           ></path>
         </svg>
       </div>
