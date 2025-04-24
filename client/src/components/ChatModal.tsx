@@ -126,22 +126,24 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   // Função para enviar mensagem de áudio ao webhook
   const processAndSendAudio = useCallback(async (audioBlob: Blob, duration: number) => {
     if (!audioBlob || audioBlob.size === 0) {
-      console.error("Blob de áudio vazio, não é possível processar");
+      console.error("[DEBUG] Blob de áudio vazio, não é possível processar");
       return;
     }
     
     try {
-      console.log(`Processando áudio de ${duration}s, tamanho: ${(audioBlob.size/1024).toFixed(2)}KB`);
+      console.log(`[DEBUG] Processando áudio de ${duration}s, tamanho: ${(audioBlob.size/1024).toFixed(2)}KB`);
       
-      // Criar URL do objeto de áudio para reprodução direta
+      // 1. Criar URL do objeto de áudio para reprodução no navegador
       const audioUrl = URL.createObjectURL(audioBlob);
-      console.log("URL do áudio criada:", audioUrl);
+      console.log("[DEBUG] URL do áudio criada:", audioUrl);
       
-      // Criar mensagem para o usuário
+      // 2. Criar ID único para a mensagem
       const messageId = Date.now();
       const isLargeAudio = audioBlob.size > 100 * 1024;
       
-      // Adicionar mensagem inicial com URL do áudio
+      // 3. Adicionar mensagem ao chat com a URL do áudio
+      console.log("[DEBUG] Adicionando mensagem de áudio com URL:", audioUrl);
+      
       const userMessage: Message = {
         id: messageId,
         content: isLargeAudio ? "🎤 Processando áudio..." : "🎤 Áudio enviado",
@@ -149,12 +151,19 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         sender: 'user',
         timestamp: new Date(),
         duration: duration,
-        audioUrl: audioUrl // Salvar URL do áudio no objeto de mensagem
+        audioUrl: audioUrl // Esta é a URL do blob que permite reprodução
       };
       
-      setMessages(prev => [...prev, userMessage]);
+      // 4. Atualizar estado com a nova mensagem
+      setMessages(prevMessages => {
+        console.log("[DEBUG] Estado anterior de mensagens:", prevMessages.length);
+        const newMessages = [...prevMessages, userMessage];
+        console.log("[DEBUG] Novo estado de mensagens:", newMessages.length);
+        return newMessages;
+      });
       
-      // Converter para base64 para envio ao webhook
+      // 5. Converter para base64 para envio ao webhook
+      console.log("[DEBUG] Convertendo áudio para base64...");
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       
@@ -162,41 +171,50 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
         reader.onloadend = () => {
           try {
             const base64 = reader.result?.toString().split(',')[1] || '';
+            console.log("[DEBUG] Base64 gerado com sucesso, tamanho:", base64.length);
             resolve(base64);
           } catch (err) {
+            console.error("[DEBUG] Erro ao gerar base64:", err);
             reject(err);
           }
         };
-        reader.onerror = err => reject(err);
+        reader.onerror = err => {
+          console.error("[DEBUG] Erro de leitura do arquivo:", err);
+          reject(err);
+        };
       });
       
-      // Verificar tamanho do base64
+      // 6. Verificar tamanho do base64
       const base64Size = base64Data.length * 0.75; // 1 caractere base64 = 0.75 bytes
-      console.log(`Tamanho do áudio em base64: ${(base64Size/1024).toFixed(2)}KB`);
+      console.log(`[DEBUG] Tamanho do áudio em base64: ${(base64Size/1024).toFixed(2)}KB`);
       
-      // Atualizar mensagem se necessário, mantendo a URL do áudio
+      // 7. Atualizar mensagem se necessário, mantendo a URL do áudio
       if (isLargeAudio) {
         const finalContent = base64Size > 500 * 1024 
           ? "🎤 Áudio enviado (versão reduzida - o original era muito grande)"
           : "🎤 Áudio enviado";
         
+        console.log("[DEBUG] Atualizando conteúdo da mensagem de áudio:", finalContent);
         setMessages(prev => prev.map(msg => 
           msg.id === messageId ? {...msg, content: finalContent} : msg
         ));
       }
       
-      // Preparar áudio para envio (reduzindo tamanho se necessário)
+      // 8. Preparar áudio para envio (reduzindo tamanho se necessário)
       let processedBase64 = base64Data;
       if (base64Size > 500 * 1024) {
         const maxChars = Math.floor(500 * 1024 / 0.75);
         processedBase64 = base64Data.substring(0, maxChars);
-        console.warn("Áudio truncado para aproximadamente 500KB");
+        console.warn("[DEBUG] Áudio truncado para aproximadamente 500KB");
       }
       
-      // Enviar para o webhook
+      // 9. Enviar para o webhook
+      console.log("[DEBUG] Enviando áudio para webhook...");
       setIsTyping(true);
+      
       try {
         const webhookResponses = await sendMessageToWebhook(agent.name, processedBase64, "audio");
+        console.log("[DEBUG] Resposta do webhook recebida:", webhookResponses);
         
         // Processar resposta
         if (webhookResponses && webhookResponses.length > 0) {
@@ -205,15 +223,20 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           setIsTyping(false);
         }
       } catch (webhookError) {
-        console.error('Erro ao enviar áudio para o webhook:', webhookError);
+        console.error('[DEBUG] Erro ao enviar áudio para o webhook:', webhookError);
         setIsTyping(false);
-        
-        // Mesmo que falhe o envio para o webhook, o áudio permanece na interface
-        // porque já salvamos a URL do blob no estado
       }
       
+      // 10. Fazer scroll para mostrar a nova mensagem
+      setTimeout(() => {
+        const chatContainer = document.querySelector('.chat-messages');
+        if (chatContainer) {
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+      }, 100);
+      
     } catch (error) {
-      console.error('Erro ao processar áudio:', error);
+      console.error('[DEBUG] Erro ao processar áudio:', error);
       setIsTyping(false);
       
       // Adicionar mensagem de erro
@@ -294,7 +317,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       
       // Configurar ação ao parar gravação
       recorder.onstop = async () => {
-        console.log("Gravação finalizada, processando...");
+        console.log("[DEBUG] Gravação finalizada, processando...");
         
         // Limpar timer
         if (audioTimer) {
@@ -310,11 +333,18 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
           const finalDuration = audioDurationRef.current;
           const audioBlob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
           
+          // Log para debug do blob
+          console.log(`[DEBUG] Blob de áudio criado: ${audioBlob.size} bytes, tipo: ${audioBlob.type}`);
+          
+          // Criar URL do blob para uso imediato
+          const audioUrl = URL.createObjectURL(audioBlob);
+          console.log(`[DEBUG] URL do áudio criada: ${audioUrl}`);
+          
           // Enviar áudio
-          console.log(`Preparando envio de áudio: ${chunks.length} chunks, ${finalDuration}s`);
+          console.log(`[DEBUG] Preparando envio de áudio: ${chunks.length} chunks, ${finalDuration}s, com audioUrl`);
           await processAndSendAudio(audioBlob, finalDuration);
         } else {
-          console.warn("Nenhum dado capturado na gravação");
+          console.warn("[DEBUG] Nenhum dado capturado na gravação");
         }
         
         // Resetar estado
@@ -447,6 +477,8 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
   
   // Função para reproduzir áudio
   const playAudio = useCallback((messageId: number, audioContent: string, audioUrl?: string) => {
+    console.log("[DEBUG] Reproduzindo áudio...", { messageId, audioContent, audioUrl });
+    
     // Se já estiver tocando um áudio, pare-o
     if (currentAudio.audio && currentAudio.isPlaying) {
       currentAudio.audio.pause();
@@ -469,17 +501,18 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       
       // Usar a URL do blob se disponível, caso contrário, usar áudio de exemplo
       if (audioUrl) {
-        console.log("Reproduzindo áudio da URL:", audioUrl);
+        console.log("[DEBUG] Reproduzindo áudio da URL:", audioUrl);
         audioElement.src = audioUrl;
       } else {
         // Áudio de fallback apenas para efeito visual
-        console.log("Áudio URL não disponível, usando fallback");
+        console.log("[DEBUG] Áudio URL não disponível, usando fallback");
         const audioSrc = `data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAASAAAeMwAUFBQUFCkpKSkpKT4+Pj4+PklJSUlJSVpaWlpaWm9vb29vb3t7e3t7e4aGhoaGhpGRkZGRkaampqamprKysrKysr29vb29vcfHx8fHx9LS0tLS0uTk5OTk5PX19fX19f////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAHjOZTf9/AAAAAAAAAAAAAAAAAAAAAP/7UMQAAAesTx2R0TAI8XHk0mYbBAhBAEAQBA0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NAAIAAJ/4iIiIiIiITEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/+1LECgAK6Q8+2emAAkG9J5ZxkwBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==`;
         audioElement.src = audioSrc;
       }
       
       // Eventos de controle
       audioElement.onplay = () => {
+        console.log("[DEBUG] Áudio começou a tocar", messageId);
         setCurrentAudio({
           audio: audioElement,
           messageId: messageId,
@@ -488,6 +521,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       };
       
       audioElement.onended = () => {
+        console.log("[DEBUG] Áudio terminou", messageId);
         setCurrentAudio({
           audio: null,
           messageId: null,
@@ -496,7 +530,7 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       };
       
       audioElement.onerror = (e) => {
-        console.error("Erro ao reproduzir áudio:", e);
+        console.error("[DEBUG] Erro ao reproduzir áudio:", e);
         setCurrentAudio({
           audio: null,
           messageId: null,
@@ -505,11 +539,13 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
       };
       
       // Iniciar reprodução
-      audioElement.play().catch(err => {
-        console.error("Erro ao iniciar reprodução:", err);
-      });
+      audioElement.play()
+        .then(() => console.log("[DEBUG] Reprodução iniciada com sucesso"))
+        .catch(err => {
+          console.error("[DEBUG] Erro ao iniciar reprodução:", err);
+        });
     } catch (error) {
-      console.error("Erro ao criar elemento de áudio:", error);
+      console.error("[DEBUG] Erro ao criar elemento de áudio:", error);
     }
   }, [currentAudio]);
   
@@ -708,64 +744,12 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
                   <p>{message.content}</p>
                 ) : message.type === 'audio' ? (
                   <div className="flex items-center">
-                    {/* 1. Se houver URL de áudio disponível, mostra <audio> e botão customizado */}
-                    {message.audioUrl ? (
-                      <div className="w-full">
-                        <div className="flex items-center mb-1">
-                          <button 
-                            onClick={() => playAudio(message.id, message.content, message.audioUrl)}
-                            className="mr-2 p-1 rounded-full bg-[var(--primary-700)] hover:bg-[var(--primary-600)] transition-colors"
-                          >
-                            {currentAudio.messageId === message.id && currentAudio.isPlaying ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m-9-9h14a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
-                              </svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                            )}
-                          </button>
-                          <div className="flex-1">
-                            <p className="text-sm">{message.content}</p>
-                          </div>
-                        </div>
-                        
-                        {/* Controle de áudio nativo (invisível, só para debug) */}
-                        <audio 
-                          src={message.audioUrl} 
-                          controls 
-                          className="hidden" // Oculto, apenas para debug
-                        />
-                        
-                        {/* Barra de progresso customizada */}
-                        {message.duration && (
-                          <div className="mt-1 text-xs text-gray-300">
-                            {currentAudio.messageId === message.id && currentAudio.isPlaying ? (
-                              <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1 overflow-hidden">
-                                <div 
-                                  className="bg-[var(--secondary-400)] h-1.5 rounded-full animate-progress-bar"
-                                  style={{ animationDuration: `${message.duration}s` }}
-                                ></div>
-                              </div>
-                            ) : (
-                              <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1">
-                                <div 
-                                  className="bg-gray-500 h-1.5 rounded-full"
-                                  style={{ width: '0%' }}
-                                ></div>
-                              </div>
-                            )}
-                            <span>{formatDuration(message.duration)}</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      // 2. Fallback quando não há URL de áudio (para compatibilidade)
-                      <div className="flex items-center w-full">
+                    
+                    {/* Novo layout para áudio com maior visibilidade e controles nativos */}
+                    <div className="w-full">
+                      <div className="flex items-center mb-1">
                         <button 
-                          onClick={() => playAudio(message.id, message.content)}
+                          onClick={() => playAudio(message.id, message.content, message.audioUrl)}
                           className="mr-2 p-1 rounded-full bg-[var(--primary-700)] hover:bg-[var(--primary-600)] transition-colors"
                         >
                           {currentAudio.messageId === message.id && currentAudio.isPlaying ? (
@@ -781,31 +765,40 @@ export default function ChatModal({ isOpen, onClose, agent }: ChatModalProps) {
                         </button>
                         <div className="flex-1">
                           <p className="text-sm">{message.content}</p>
-                          
-                          {message.duration && (
-                            <div className="mt-1 text-xs text-gray-300">
-                              {/* Barra de progresso */}
-                              {currentAudio.messageId === message.id && currentAudio.isPlaying ? (
-                                <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1 overflow-hidden">
-                                  <div 
-                                    className="bg-[var(--secondary-400)] h-1.5 rounded-full animate-progress-bar"
-                                    style={{ animationDuration: `${message.duration}s` }}
-                                  ></div>
-                                </div>
-                              ) : (
-                                <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1">
-                                  <div 
-                                    className="bg-gray-500 h-1.5 rounded-full"
-                                    style={{ width: '0%' }}
-                                  ></div>
-                                </div>
-                              )}
-                              <span>{formatDuration(message.duration)}</span>
-                            </div>
-                          )}
                         </div>
                       </div>
-                    )}
+                      
+                      {/* Controle de áudio nativo (visível para garantir funcionamento) */}
+                      {message.audioUrl && (
+                        <audio 
+                          src={message.audioUrl} 
+                          controls 
+                          className="w-full h-8 mt-1" 
+                        />
+                      )}
+                      
+                      {/* Barra de progresso customizada */}
+                      {message.duration && (
+                        <div className="mt-1 text-xs text-gray-300">
+                          {currentAudio.messageId === message.id && currentAudio.isPlaying ? (
+                            <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1 overflow-hidden">
+                              <div 
+                                className="bg-[var(--secondary-400)] h-1.5 rounded-full animate-progress-bar"
+                                style={{ animationDuration: `${message.duration}s` }}
+                              ></div>
+                            </div>
+                          ) : (
+                            <div className="w-full bg-gray-700 rounded-full h-1.5 mb-1">
+                              <div 
+                                className="bg-gray-500 h-1.5 rounded-full"
+                                style={{ width: '0%' }}
+                              ></div>
+                            </div>
+                          )}
+                          <span>{formatDuration(message.duration)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <p>Tipo de mensagem não suportado: {message.type}</p>
