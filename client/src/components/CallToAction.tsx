@@ -1,8 +1,5 @@
-import { socialLinks } from "@/config/social";
-
 export default function CallToAction() {
-  // Usar link do WhatsApp das variáveis de ambiente
-  const whatsappLink = socialLinks.whatsapp;
+  const whatsappLink = "https://api.whatsapp.com/send/?phone=5524988582901&text=Ol%C3%A1%21+Vim+do+site+e+gostaria+de+saber+mais+sobre+os+agentes+de+IA.&type=phone_number&app_absent=0";
   
   return (
     <section className="pt-20 pb-20 md:pt-28 md:pb-28 relative section-light section-divider overflow-hidden">
